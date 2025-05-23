@@ -1,3 +1,4 @@
+/* eslint-disable react-native/no-inline-styles */
 import React, {useEffect, useState} from 'react';
 import {
   View,
@@ -14,18 +15,13 @@ import {
 } from '@react-navigation/drawer';
 
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 
 import {useDispatch} from 'react-redux';
 import {logout} from '../redux/authSlice';
-
-import {useNavigation} from '@react-navigation/native';
-
-import {getUserDefaultDetails} from '../api/api'; // adjust path if needed
+import {getUserDefaultDetails} from '../api/api';
 
 const CustomDrawer = props => {
   const dispatch = useDispatch();
-  const navigation = useNavigation();
 
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -55,8 +51,8 @@ const CustomDrawer = props => {
     <View style={{flex: 1}}>
       <DrawerContentScrollView {...props}>
         <ImageBackground
-          source={require('../assets/images/menu-bg.jpeg')}
-          style={{padding: 20}}>
+          source={require('../assets/images/cstside.jpg')}
+          style={{padding: 20,borderCurves: 20}}>
           <Image
             source={require('../assets/images/user-profile.jpg')}
             style={{height: 80, width: 80, borderRadius: 40, marginBottom: 10}}
@@ -83,7 +79,7 @@ const CustomDrawer = props => {
                 {userData?.userEmail || 'No Email'}
               </Text>
               <Text style={{marginBottom: 2}}>
-                Consultant: {userData.userLinkedConsultantName || 'N/A'}
+                 Consultant: {userData.userLinkedConsultantName || 'N/A'}
               </Text>
             </>
           )}
@@ -95,7 +91,7 @@ const CustomDrawer = props => {
       </DrawerContentScrollView>
 
       <View style={{padding: 20, borderTopWidth: 1, borderTopColor: '#ccc'}}>
-        <TouchableOpacity onPress={() => {Alert.alert("Friend Not Found")}} style={{paddingVertical: 15}}>
+        <TouchableOpacity onPress={() => {Alert.alert('Friend Not Found');}} style={{paddingVertical: 15}}>
           <View style={{flexDirection: 'row', alignItems: 'center'}}>
             <Ionicons name="share-social-outline" size={22} />
             <Text

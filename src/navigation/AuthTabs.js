@@ -20,6 +20,8 @@ const AuthTabs = () => {
   const [otpSent, setOtpSent] = useState(false);
   const [input, setInput] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+
 
   const dispatch = useDispatch();
 
@@ -36,40 +38,38 @@ const AuthTabs = () => {
       Alert.alert('Error', 'Please enter your password.');
       return;
     }
-    if (useOtp && otpSent && !password) { 
+    if (useOtp && otpSent && !password) {
       Alert.alert('Error', 'Please enter the OTP.');
       return;
     }
+  
+    setLoading(true); // 🟢 Start loading
     let loginID = loginType === 'mobile' ? 2 : loginType === 'email' ? 1 : 0;
-
-    if (useOtp && otpSent) {
-      const res = await verifyOtp(loginID, input, password);
-      if (res.status) {
-        Alert.alert('Success', 'OTP verified successfully.');
-        dispatch(loginSuccess(res.data));
+  
+    try {
+      if (useOtp && otpSent) {
+        const res = await verifyOtp(loginID, input, password);
+        if (res.status) {
+          Alert.alert('Success', 'OTP verified successfully.');
+          dispatch(loginSuccess(res.data));
+        } else {
+          Alert.alert('Error', res.errorMessage || 'Unknown error');
+        }
       } else {
-        Alert.alert('Error', res.errorMessage || 'Unknown error');
-        return;
-      }
-      }
-    else {
-      if (!password) {
-        Alert.alert('Error', 'Please enter your password.');
-        return;
-      }
-    await userAuthentication(loginID, input, password)
-      .then(res => {
+        const res = await userAuthentication(loginID, input, password);
         if (res.status) {
           dispatch(loginSuccess(res.data));
         } else {
           Alert.alert('Login failed', res.errorMessage || 'Unknown error');
         }
-      })
-      .catch(err => {
-        Alert.alert('Login error', err.message || 'Unknown error');
-      });
-  }
-};
+      }
+    } catch (err) {
+      Alert.alert('Login error', err.message || 'Unknown error');
+    } finally {
+      setLoading(false); // 🔴 Stop loading
+    }
+  };
+  
 
   const handleOtpsent = async () => {
     if (!input) {
@@ -162,15 +162,28 @@ const AuthTabs = () => {
         />
       )}
 
-      { !useOtp &&   (<TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
-        <Text style={styles.loginButtonText}>Login</Text>
-      </TouchableOpacity>)}
-
-      {useOtp && otpSent && (
-        <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
-          <Text style={styles.loginButtonText}>Verify OTP</Text>
+      {!useOtp && (
+        <TouchableOpacity
+          style={[styles.loginButton, loading && { opacity: 0.6 }]}
+          onPress={handleLogin}
+          disabled={loading}>
+          <Text style={styles.loginButtonText}>
+            {loading ? 'Logging in...' : 'Login'}
+          </Text>
         </TouchableOpacity>
       )}
+
+      {useOtp && otpSent && (
+        <TouchableOpacity
+          style={[styles.loginButton, loading && { opacity: 0.6 }]}
+          onPress={handleLogin}
+          disabled={loading}>
+          <Text style={styles.loginButtonText}>
+            {loading ? 'Verifying OTP...' : 'Verify OTP'}
+          </Text>
+        </TouchableOpacity>
+      )}
+
 
       <TouchableOpacity
         onPress={() => {
@@ -199,19 +212,20 @@ export default AuthTabs;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f4f6f9',
+    backgroundColor: '#FFFFFF', // background theme color
     paddingHorizontal: 25,
     paddingTop: 180,
+    
   },
   header: {
     fontSize: 26,
     fontWeight: '700',
-    color: '#344955',
+    color: '#0A3C97', // dark color
     textAlign: 'center',
   },
   subHeader: {
     fontSize: 14,
-    color: '#607D8B',
+    color: '#335589', // light color
     textAlign: 'center',
     marginBottom: 20,
   },
@@ -224,51 +238,52 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 14,
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: '#264487', // slight dark
     marginHorizontal: 5,
     borderRadius: 8,
-    backgroundColor: '#fff',
+    backgroundColor: '#FFFFFF', // background theme color
   },
   tabButtonActive: {
-    backgroundColor: '#4DB6AC',
-    borderColor: '#4DB6AC',
+    backgroundColor: '#335589', // light color
+    borderColor: '#335589',
   },
   tabText: {
-    color: '#344955',
+    color: '#0A3C97', // dark color
     fontWeight: '500',
   },
   tabTextActive: {
-    color: '#fff',
+    color: '#FFFFFF', // white text on active tab
     fontWeight: '600',
   },
   input: {
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: '#264487', // slight dark
     borderRadius: 10,
     padding: 12,
     marginBottom: 12,
-    backgroundColor: '#fff',
+    backgroundColor: '#FFFFFF', // white input background
+    color: '#0A3C97', // dark text
   },
   otpButton: {
-    backgroundColor: '#4DB6AC',
+    backgroundColor: '#335589', // light color
     padding: 12,
     borderRadius: 8,
     alignItems: 'center',
     marginBottom: 12,
   },
   otpButtonText: {
-    color: '#fff',
+    color: '#FFFFFF',
     fontWeight: '600',
   },
   loginButton: {
-    backgroundColor: '#00796B',
+    backgroundColor: '#0A3C97', // dark color
     padding: 14,
     borderRadius: 10,
     alignItems: 'center',
     marginVertical: 10,
   },
   loginButtonText: {
-    color: '#fff',
+    color: '#FFFFFF',
     fontWeight: '700',
     fontSize: 16,
   },
@@ -277,7 +292,7 @@ const styles = StyleSheet.create({
     marginVertical: 6,
   },
   switchModeText: {
-    color: '#00796B',
+    color: '#264487', // slight dark
     fontWeight: '500',
   },
   registerContainer: {
@@ -286,10 +301,10 @@ const styles = StyleSheet.create({
     marginTop: 14,
   },
   registerPrompt: {
-    color: '#555',
+    color: '#335589', // light color
   },
   registerText: {
-    color: '#00796B',
+    color: '#0A3C97', // dark color
     fontWeight: '600',
   },
 });

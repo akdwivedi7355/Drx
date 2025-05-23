@@ -1,3 +1,4 @@
+/* eslint-disable quotes */
 import axios from 'axios';
 import CryptoJS from 'crypto-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -119,7 +120,7 @@ export const verifyOtp = async (authType, loginId, otpValue) => {
 
 export const userAuthenticationAuto = async () => {
   const creds = await getFromAsyncStorage('auth_credentials');
-  if (!creds) return {status: false, errorMessage: 'No stored credentials'};
+  if (!creds) {return {status: false, errorMessage: 'No stored credentials'};}
 
   const payload = {
     loginId: creds.loginId,
@@ -140,15 +141,33 @@ export const userAuthenticationAuto = async () => {
 
 export const getUserDefaultDetails = async () => {
   const creds = await getFromAsyncStorage('auth_credentials');
-  if (!creds) return {status: false, errorMessage: 'No session ID found'};
+  if (!creds) {return {status: false, errorMessage: 'No session ID found'};}
 
-  const headers = {u: creds.u};
-  const res = await post('/DefaultValues', {}, headers);
-  if (res.status && res.data) {
-    await storeToAsyncStorage('user_details', res.data);
+  const headers = { u: creds.u };
+  let res = await post('/DefaultValues', {}, headers);
+
+  if (res.respCode === 'ERR0001') {
+    console.warn('Session invalid. Attempting automatic re-authentication...');
+    const autoLoginRes = await userAuthenticationAuto();
+
+    if (!autoLoginRes.status) {
+      return { status: false, errorMessage: 'Auto login failed' };
+    }
+
+    const newCreds = await getFromAsyncStorage('auth_credentials');
+    if (!newCreds) {return {status: false, errorMessage: 'Failed to retrieve new session ID after login'};}
+
+    const newHeaders = { u: newCreds.u };
+    res = await post('/DefaultValues', {}, newHeaders);
   }
+
+  // if (res.status && res.data) {
+  //   await storeToAsyncStorage('user_details', res.data);
+  // }
+
   return res;
 };
+
 
 export const getStoredCredentials = async () => {
   return await getFromAsyncStorage('auth_credentials');
