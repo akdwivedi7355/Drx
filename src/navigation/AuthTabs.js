@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { useDispatch } from 'react-redux';
 import { loginSuccess } from '../redux/authSlice';
-import { requestOtp, userAuthentication } from '../api/api';
+import { requestOtp, userAuthentication, verifyOtp } from '../api/api';
 
 const loginTypes = ['mobile', 'username', 'email'];
 
@@ -23,7 +23,7 @@ const AuthTabs = () => {
 
   const dispatch = useDispatch();
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     if (!input || (useOtp && !password)) {
       Alert.alert('Error', 'Please fill in all fields.');
       return;
@@ -42,7 +42,22 @@ const AuthTabs = () => {
     }
     let loginID = loginType === 'mobile' ? 2 : loginType === 'email' ? 1 : 0;
 
-    userAuthentication(loginID, input, password)
+    if (useOtp && otpSent) {
+      const res = await verifyOtp(loginID, input, password);
+      if (res.status) {
+        Alert.alert('Success', 'OTP verified successfully.');
+        dispatch(loginSuccess(res.data));
+      } else {
+        Alert.alert('Error', res.errorMessage || 'Unknown error');
+        return;
+      }
+      }
+    else {
+      if (!password) {
+        Alert.alert('Error', 'Please enter your password.');
+        return;
+      }
+    await userAuthentication(loginID, input, password)
       .then(res => {
         if (res.status) {
           dispatch(loginSuccess(res.data));
@@ -53,15 +68,17 @@ const AuthTabs = () => {
       .catch(err => {
         Alert.alert('Login error', err.message || 'Unknown error');
       });
-  };
+  }
+};
 
-  const handleOtpsent = () => {   
+  const handleOtpsent = async () => {
     if (!input) {
       Alert.alert('Error', 'Please enter your mobile number or email or username.');
       return;
     }
     let authtype = loginType === 'mobile' ? 2 : loginType === 'email' ? 1 : 0;
-    const res = requestOtp(authtype, input);
+    const res = await requestOtp(authtype, input);
+    console.log('res', res);
     if (res.status) {
       Alert.alert('OTP Sent', 'An OTP has been sent to your registered mobile number.');
 
@@ -72,6 +89,8 @@ const AuthTabs = () => {
       return;
     }
   };
+
+  
 
   const getKeyboardType = (): KeyboardTypeOptions => {
     return loginType === 'mobile'
@@ -147,7 +166,7 @@ const AuthTabs = () => {
         <Text style={styles.loginButtonText}>Login</Text>
       </TouchableOpacity>)}
 
-      {useOtp && otpSent && (   
+      {useOtp && otpSent && (
         <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
           <Text style={styles.loginButtonText}>Verify OTP</Text>
         </TouchableOpacity>
