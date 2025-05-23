@@ -24,7 +24,7 @@ const AppDrawer = () => {
         // headerShown: false,
         drawerItemStyle: {paddingLeft: 10}, // Adjust left padding for icon-label spacing
         // drawerLabelStyle: { marginLeft: -10 },
-        drawerActiveBackgroundColor: '#aa18ea',
+        drawerActiveBackgroundColor: '#0A3C97',
         drawerActiveTintColor: '#fff',
         drawerInactiveTintColor: '#333',
         drawerLabelStyle: {

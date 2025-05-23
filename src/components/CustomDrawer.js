@@ -1,10 +1,13 @@
-import React from 'react';
+/* eslint-disable react-native/no-inline-styles */
+import React, {useEffect, useState} from 'react';
 import {
   View,
   Text,
   ImageBackground,
   Image,
   TouchableOpacity,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import {
   DrawerContentScrollView,
@@ -12,60 +15,83 @@ import {
 } from '@react-navigation/drawer';
 
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 
 import {useDispatch} from 'react-redux';
 import {logout} from '../redux/authSlice';
-
-import {useNavigation} from '@react-navigation/native';
+import {getUserDefaultDetails} from '../api/api';
 
 const CustomDrawer = props => {
   const dispatch = useDispatch();
-  const navigation = useNavigation();
+
+  const [userData, setUserData] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   const handleSignOut = () => {
-    dispatch(logout()); // navigate to login or landing screen
+    dispatch(logout());
   };
+
+  useEffect(() => {
+    const fetchUserDetails = async () => {
+      try {
+        const response = await getUserDefaultDetails();
+        if (response.status && response.data) {
+          setUserData(response.data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch user details:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserDetails();
+  }, []);
+
   return (
     <View style={{flex: 1}}>
-      <DrawerContentScrollView
-        {...props}
-        // contentContainerStyle={{backgroundColor: '#8200d6'}}
-      >
+      <DrawerContentScrollView {...props}>
         <ImageBackground
-          source={require('../assets/images/menu-bg.jpeg')}
-          style={{padding: 20}}>
+          source={require('../assets/images/cstside.jpg')}
+          style={{padding: 20,borderCurves: 20}}>
           <Image
             source={require('../assets/images/user-profile.jpg')}
             style={{height: 80, width: 80, borderRadius: 40, marginBottom: 10}}
           />
-          <Text
-            style={{
-              color: '#fff',
-              fontSize: 18,
-              fontFamily: 'Roboto-Medium',
-              marginBottom: 5,
-            }}>
-            Aditya Kumar Dwivedi
-          </Text>
-          {/* <View style={{flexDirection: 'row'}}>
-            <Text
-              style={{
-                color: '#fff',
-                fontFamily: 'Roboto-Regular',
-                marginRight: 5,
-              }}>
-              280 Coins
-            </Text>
-            <FontAwesome5 name="coins" size={14} color="#fff" />
-          </View> */}
+          {loading ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <>
+              <Text
+                style={{
+                  color: '#fff',
+                  fontSize: 18,
+                  fontFamily: 'Roboto-Medium',
+                  marginBottom: 5,
+                }}>
+                {userData?.userName || 'No Name'}
+              </Text>
+              <Text
+                style={{
+                  color: '#fff',
+                  fontSize: 14,
+                  fontFamily: 'Roboto-Regular',
+                }}>
+                {userData?.userEmail || 'No Email'}
+              </Text>
+              <Text style={{marginBottom: 2}}>
+                 Consultant: {userData.userLinkedConsultantName || 'N/A'}
+              </Text>
+            </>
+          )}
         </ImageBackground>
+
         <View style={{flex: 1, backgroundColor: '#fff', paddingTop: 20}}>
           <DrawerItemList {...props} />
         </View>
       </DrawerContentScrollView>
+
       <View style={{padding: 20, borderTopWidth: 1, borderTopColor: '#ccc'}}>
-        <TouchableOpacity onPress={() => {}} style={{paddingVertical: 15}}>
+        <TouchableOpacity onPress={() => {Alert.alert('Friend Not Found');}} style={{paddingVertical: 15}}>
           <View style={{flexDirection: 'row', alignItems: 'center'}}>
             <Ionicons name="share-social-outline" size={22} />
             <Text
@@ -78,7 +104,9 @@ const CustomDrawer = props => {
             </Text>
           </View>
         </TouchableOpacity>
-        <TouchableOpacity onPress={handleSignOut} style={{paddingVertical: 15}}>
+
+                paddingBottom: 50,
+                <TouchableOpacity onPress={handleSignOut} style={{paddingVertical: 15, paddingBottom: 50}}>
           <View style={{flexDirection: 'row', alignItems: 'center'}}>
             <Ionicons name="exit-outline" size={22} />
             <Text
@@ -86,7 +114,7 @@ const CustomDrawer = props => {
                 fontSize: 15,
                 fontFamily: 'Roboto-Medium',
                 marginLeft: 5,
-              }}>
+               }}>
               Sign Out
             </Text>
           </View>

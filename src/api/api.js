@@ -1,25 +1,46 @@
+/* eslint-disable quotes */
 import axios from 'axios';
 import CryptoJS from 'crypto-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const BaseURL = 'http://localhost/aarogyaRx_v5/aarogyaRx/apis/v1';
-const AES_KEY = CryptoJS.enc.Hex.parse('1c012b9c8aa74363aa541b8080e886e0');
-const AES_IV = CryptoJS.enc.Hex.parse('080aae32c79b49bf');
+const BaseURL = 'https://uataarogyarx.dmaarogya.com/aarogyarx/aarogyaRx/apis/v1/';
+const AES_KEY = '1c012b9c8aa74363aa541b8080e886e0';
+const AES_IV = '080aae32c79b49bf';
 
-// AES Encryption
-const encrypt = text => {
-  const encrypted = CryptoJS.AES.encrypt(text, AES_KEY, {
-    iv: AES_IV,
+const encrypt = (plainText) => {
+  var key = CryptoJS.enc.Utf8.parse(AES_KEY);
+  var iv = CryptoJS.enc.Utf8.parse(AES_IV);
+
+  console.log("IV (Base64):", CryptoJS.enc.Base64.stringify(iv));
+  var cipherText = CryptoJS.AES.encrypt(plainText, key, {
+    // eslint-disable-next-line comma-dangle
+    iv: iv,
+  });
+
+  return cipherText.toString();
+};
+
+const decrypt = (cipherText) => { 
+  var key = CryptoJS.enc.Utf8.parse(AES_KEY);
+  var iv = CryptoJS.enc.Utf8.parse(AES_IV);
+  var decrypted = CryptoJS.AES.decrypt({ ciphertext: CryptoJS.enc.Base64.parse(cipherText) }, key, {
+    iv: iv ,
     mode: CryptoJS.mode.CBC,
     padding: CryptoJS.pad.Pkcs7,
   });
-  return encrypted.toString();
-};
+  console.log("Decrypted:", decrypted);
+  console.log(decrypted.toString(CryptoJS.enc.Utf8));
+  if (decrypted.sigBytes <= 0) {
+    console.error('Decryption failed: Invalid ciphertext or key/IV');
+    return null;
+  }
 
-// POST Request
+  return decrypted.toString(CryptoJS.enc.Utf8);
+}
 const post = async (url, data, headers = {}) => {
   try {
     const response = await axios.post(`${BaseURL}${url}`, data, {headers});
+    console.log("Response:", response);
     return response.data;
   } catch (error) {
     console.error(`API error at ${url}:`, error.message);
@@ -27,7 +48,7 @@ const post = async (url, data, headers = {}) => {
   }
 };
 
-// Store to AsyncStorage
+
 const storeToAsyncStorage = async (key, value) => {
   try {
     await AsyncStorage.setItem(key, JSON.stringify(value));
@@ -36,7 +57,6 @@ const storeToAsyncStorage = async (key, value) => {
   }
 };
 
-// Get from AsyncStorage
 const getFromAsyncStorage = async key => {
   try {
     const value = await AsyncStorage.getItem(key);
@@ -47,14 +67,16 @@ const getFromAsyncStorage = async key => {
   }
 };
 
-// (1) UserAuthentication with Password
+
 export const userAuthentication = async (authType, loginId, password) => {
   const payload = {
     authType: authType.toString(),
     loginId: encrypt(loginId),
     password: encrypt(password),
   };
+  console.log("payload", payload);
   const res = await post('/UserAuthentication', payload);
+  console.log("res", res);
   if (res.status && res.data) {
     await storeToAsyncStorage('auth_credentials', {
       loginId: res.data.loginId,
@@ -65,16 +87,19 @@ export const userAuthentication = async (authType, loginId, password) => {
   return res;
 };
 
-// (2) Request OTP
+
 export const requestOtp = async (authType, loginId) => {
   const payload = {
     authType: authType,
     loginId: encrypt(loginId),
   };
+  console.log("payload", payload);
+  const decript =  decrypt(payload.loginId);
+  console.log("decript", decript);
   return await post('/RequestOTP', payload);
 };
 
-// (3) Verify OTP
+
 export const verifyOtp = async (authType, loginId, otpValue) => {
   const payload = {
     authType: authType,
@@ -92,10 +117,10 @@ export const verifyOtp = async (authType, loginId, otpValue) => {
   return res;
 };
 
-// (4) User Authentication Auto
+
 export const userAuthenticationAuto = async () => {
   const creds = await getFromAsyncStorage('auth_credentials');
-  if (!creds) return {status: false, errorMessage: 'No stored credentials'};
+  if (!creds) {return {status: false, errorMessage: 'No stored credentials'};}
 
   const payload = {
     loginId: creds.loginId,
@@ -112,25 +137,43 @@ export const userAuthenticationAuto = async () => {
   return res;
 };
 
-// (5) User Default Detail
+
+
 export const getUserDefaultDetails = async () => {
   const creds = await getFromAsyncStorage('auth_credentials');
-  if (!creds) return {status: false, errorMessage: 'No session ID found'};
+  if (!creds) {return {status: false, errorMessage: 'No session ID found'};}
 
-  const headers = {u: creds.u};
-  const res = await post('/DefaultValues', {}, headers);
-  if (res.status && res.data) {
-    await storeToAsyncStorage('user_details', res.data);
+  const headers = { u: creds.u };
+  let res = await post('/DefaultValues', {}, headers);
+
+  if (res.respCode === 'ERR0001') {
+    console.warn('Session invalid. Attempting automatic re-authentication...');
+    const autoLoginRes = await userAuthenticationAuto();
+
+    if (!autoLoginRes.status) {
+      return { status: false, errorMessage: 'Auto login failed' };
+    }
+
+    const newCreds = await getFromAsyncStorage('auth_credentials');
+    if (!newCreds) {return {status: false, errorMessage: 'Failed to retrieve new session ID after login'};}
+
+    const newHeaders = { u: newCreds.u };
+    res = await post('/DefaultValues', {}, newHeaders);
   }
+
+  // if (res.status && res.data) {
+  //   await storeToAsyncStorage('user_details', res.data);
+  // }
+
   return res;
 };
 
-// Helper to retrieve stored credentials
+
 export const getStoredCredentials = async () => {
   return await getFromAsyncStorage('auth_credentials');
 };
 
-// Helper to retrieve stored user details
+
 export const getStoredUserDetails = async () => {
   return await getFromAsyncStorage('user_details');
 };

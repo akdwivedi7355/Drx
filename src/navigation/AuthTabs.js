@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -6,54 +6,121 @@ import {
   TouchableOpacity,
   StyleSheet,
   KeyboardTypeOptions,
+  Alert,
 } from 'react-native';
-import {useDispatch} from 'react-redux';
-import {loginSuccess} from '../redux/authSlice';
-import SvgComponent from '../assets/img/Lgscren';
+import { useDispatch } from 'react-redux';
+import { loginSuccess } from '../redux/authSlice';
+import { requestOtp, userAuthentication, verifyOtp } from '../api/api';
+
+const loginTypes = ['mobile', 'username', 'email'];
 
 const AuthTabs = () => {
-  const [loginType, setLoginType] = useState('mobile');
+  const [loginType, setLoginType] = useState('username');
   const [useOtp, setUseOtp] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
   const [input, setInput] = useState('');
   const [password, setPassword] = useState('');
-  const [otpfield, setOtpfield] = useState(false);
+  const [loading, setLoading] = useState(false);
+
 
   const dispatch = useDispatch();
 
-  const handleLogin = () => {
-    console.log(loginType, input, password, useOtp);
-    const dummyUser = {
-      id: Math.floor(Math.random() * 1000),
-      name: `${loginType} User`,
-      loginMethod: loginType,
-      identifier: input,
-      method: useOtp ? 'otp' : 'password',
-    };
-    dispatch(loginSuccess(dummyUser));
-    console.log('Logged in user:', dummyUser);
+  const handleLogin = async () => {
+    if (!input || (useOtp && !password)) {
+      Alert.alert('Error', 'Please fill in all fields.');
+      return;
+    }
+    if (useOtp && !otpSent) {
+      Alert.alert('Error', 'Please send OTP first.');
+      return;
+    }
+    if (!useOtp && !password) {
+      Alert.alert('Error', 'Please enter your password.');
+      return;
+    }
+    if (useOtp && otpSent && !password) {
+      Alert.alert('Error', 'Please enter the OTP.');
+      return;
+    }
+  
+    setLoading(true); // 🟢 Start loading
+    let loginID = loginType === 'mobile' ? 2 : loginType === 'email' ? 1 : 0;
+  
+    try {
+      if (useOtp && otpSent) {
+        const res = await verifyOtp(loginID, input, password);
+        if (res.status) {
+          Alert.alert('Success', 'OTP verified successfully.');
+          dispatch(loginSuccess(res.data));
+        } else {
+          Alert.alert('Error', res.errorMessage || 'Unknown error');
+        }
+      } else {
+        const res = await userAuthentication(loginID, input, password);
+        if (res.status) {
+          dispatch(loginSuccess(res.data));
+        } else {
+          Alert.alert('Login failed', res.errorMessage || 'Unknown error');
+        }
+      }
+    } catch (err) {
+      Alert.alert('Login error', err.message || 'Unknown error');
+    } finally {
+      setLoading(false); // 🔴 Stop loading
+    }
+  };
+  
+
+  const handleOtpsent = async () => {
+    if (!input) {
+      Alert.alert('Error', 'Please enter your mobile number or email or username.');
+      return;
+    }
+    let authtype = loginType === 'mobile' ? 2 : loginType === 'email' ? 1 : 0;
+    const res = await requestOtp(authtype, input);
+    console.log('res', res);
+    if (res.status) {
+      Alert.alert('OTP Sent', 'An OTP has been sent to your registered mobile number.');
+
+    setOtpSent(true);
+    }
+    if (res.status === false) {
+      Alert.alert('Error', res.errorMessage || 'Unknown error');
+      return;
+    }
   };
 
+  
+
   const getKeyboardType = (): KeyboardTypeOptions => {
-    if (loginType === 'mobile') return 'phone-pad';
-    if (loginType === 'email') return 'email-address';
-    return 'default';
+    return loginType === 'mobile'
+      ? 'phone-pad'
+      : loginType === 'email'
+      ? 'email-address'
+      : 'default';
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.header}>Login</Text>
+      <Text style={styles.header}>Welcome Back 👨‍⚕️</Text>
+      <Text style={styles.subHeader}>Login Porttal</Text>
 
-      <View style={styles.loginTypeContainer}>
-        {['mobile', 'username', 'email'].map(type => (
+      <View style={styles.tabContainer}>
+        {loginTypes.map(type => (
           <TouchableOpacity
             key={type}
-            onPress={() => setLoginType(type)}
+            onPress={() => {
+              setLoginType(type);
+              setInput('');
+              setPassword('');
+              setOtpSent(false);
+            }}
             style={[
-              styles.loginTypeButton,
-              loginType === type && styles.loginTypeSelected,
+              styles.tabButton,
+              loginType === type && styles.tabButtonActive,
             ]}>
-            <Text style={{color: loginType === type ? '#fff' : '#000'}}>
-              {type.charAt(0).toUpperCase() + type.slice(1)}
+            <Text style={loginType === type ? styles.tabTextActive : styles.tabText}>
+              {type.toUpperCase()}
             </Text>
           </TouchableOpacity>
         ))}
@@ -68,23 +135,22 @@ const AuthTabs = () => {
       />
 
       {useOtp ? (
-        !otpfield ? (
-          <TouchableOpacity
-            onPress={() => setOtpfield(true)}
-            style={styles.otpButton}>
-            <Text style={styles.otpButtonText}>Send OTP</Text>
-          </TouchableOpacity>
-        ) : (
+        otpSent ? (
           <TextInput
             placeholder="Enter OTP"
             value={password}
-            onChangeText={text => {
-              setPassword(text);
-              if (text.length > 0) setOtpfield(true); // Send OTP button remains hidden
-            }}
+            onChangeText={setPassword}
+            keyboardType="number-pad"
             secureTextEntry
             style={styles.input}
           />
+        ) : (
+          <TouchableOpacity
+            style={styles.otpButton}
+            onPress={handleOtpsent}>
+            <Text style={styles.otpButtonText}>Send OTP</Text>
+          </TouchableOpacity>
+
         )
       ) : (
         <TextInput
@@ -96,34 +162,46 @@ const AuthTabs = () => {
         />
       )}
 
-      <TouchableOpacity onPress={handleLogin} style={styles.loginButton}>
-        <Text style={styles.loginButtonText}>
-          {useOtp ? 'Verify Otp' : 'Login'}
+      {!useOtp && (
+        <TouchableOpacity
+          style={[styles.loginButton, loading && { opacity: 0.6 }]}
+          onPress={handleLogin}
+          disabled={loading}>
+          <Text style={styles.loginButtonText}>
+            {loading ? 'Logging in...' : 'Login'}
+          </Text>
+        </TouchableOpacity>
+      )}
+
+      {useOtp && otpSent && (
+        <TouchableOpacity
+          style={[styles.loginButton, loading && { opacity: 0.6 }]}
+          onPress={handleLogin}
+          disabled={loading}>
+          <Text style={styles.loginButtonText}>
+            {loading ? 'Verifying OTP...' : 'Verify OTP'}
+          </Text>
+        </TouchableOpacity>
+      )}
+
+
+      <TouchableOpacity
+        onPress={() => {
+          setUseOtp(prev => !prev);
+          setOtpSent(false);
+          setPassword('');
+        }}
+        style={styles.switchMode}>
+        <Text style={styles.switchModeText}>
+          {useOtp ? 'Use Password Instead' : 'Use OTP Instead'}
         </Text>
       </TouchableOpacity>
 
-      <View style={styles.toggleOtpContainer}>
-        <TouchableOpacity
-          onPress={() => {
-            setUseOtp(prev => !prev);
-            setOtpfield(false);
-            setPassword('');
-          }}>
-          <Text style={styles.toggleOtpText}>
-            {useOtp ? 'Login with Password' : 'Login with OTP'}
-          </Text>
-        </TouchableOpacity>
-      </View>
-
       <View style={styles.registerContainer}>
-        <Text>New to the app?</Text>
+        <Text style={styles.registerPrompt}>New here?</Text>
         <TouchableOpacity>
           <Text style={styles.registerText}> Register</Text>
         </TouchableOpacity>
-      </View>
-
-      <View style={styles.svgContainer}>
-        <SvgComponent height={280} width={280} />
       </View>
     </View>
   );
@@ -133,78 +211,100 @@ export default AuthTabs;
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+    backgroundColor: '#FFFFFF', // background theme color
     paddingHorizontal: 25,
+    paddingTop: 180,
+    
   },
   header: {
-    fontSize: 28,
-    fontWeight: '500',
-    color: '#333',
-    marginBottom: 20,
+    fontSize: 26,
+    fontWeight: '700',
+    color: '#0A3C97', // dark color
     textAlign: 'center',
   },
-  loginTypeContainer: {
+  subHeader: {
+    fontSize: 14,
+    color: '#335589', // light color
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  tabContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     marginBottom: 16,
+    justifyContent: 'center',
   },
-  loginTypeButton: {
-    flex: 1,
-    padding: 10,
-    backgroundColor: '#e0e0e0',
-    alignItems: 'center',
-    marginHorizontal: 4,
-    borderRadius: 6,
+  tabButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: '#264487', // slight dark
+    marginHorizontal: 5,
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF', // background theme color
   },
-  loginTypeSelected: {
-    backgroundColor: '#AD40AF',
+  tabButtonActive: {
+    backgroundColor: '#335589', // light color
+    borderColor: '#335589',
+  },
+  tabText: {
+    color: '#0A3C97', // dark color
+    fontWeight: '500',
+  },
+  tabTextActive: {
+    color: '#FFFFFF', // white text on active tab
+    fontWeight: '600',
   },
   input: {
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: '#264487', // slight dark
+    borderRadius: 10,
     padding: 12,
-    borderRadius: 8,
     marginBottom: 12,
+    backgroundColor: '#FFFFFF', // white input background
+    color: '#0A3C97', // dark text
   },
   otpButton: {
-    backgroundColor: '#AD40AF',
+    backgroundColor: '#335589', // light color
     padding: 12,
     borderRadius: 8,
     alignItems: 'center',
     marginBottom: 12,
   },
   otpButtonText: {
-    color: '#fff',
+    color: '#FFFFFF',
     fontWeight: '600',
   },
   loginButton: {
-    backgroundColor: '#AD40AF',
+    backgroundColor: '#0A3C97', // dark color
     padding: 14,
-    borderRadius: 8,
+    borderRadius: 10,
     alignItems: 'center',
-    marginBottom: 20,
+    marginVertical: 10,
   },
   loginButtonText: {
-    color: '#fff',
-    fontWeight: '600',
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 16,
   },
-  toggleOtpContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginBottom: 12,
+  switchMode: {
+    alignItems: 'center',
+    marginVertical: 6,
   },
-  toggleOtpText: {
-    color: '#000',
+  switchModeText: {
+    color: '#264487', // slight dark
+    fontWeight: '500',
   },
   registerContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginBottom: 30,
+    marginTop: 14,
+  },
+  registerPrompt: {
+    color: '#335589', // light color
   },
   registerText: {
-    color: '#AD40AF',
-    fontWeight: '700',
-  },
-  svgContainer: {
-    alignItems: 'center',
+    color: '#0A3C97', // dark color
+    fontWeight: '600',
   },
 });
