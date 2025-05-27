@@ -13,9 +13,7 @@ import {
   DrawerContentScrollView,
   DrawerItemList,
 } from '@react-navigation/drawer';
-
 import Ionicons from 'react-native-vector-icons/Ionicons';
-
 import {useDispatch} from 'react-redux';
 import {logout} from '../redux/authSlice';
 import {getUserDefaultDetails} from '../api/api';
@@ -78,8 +76,11 @@ const CustomDrawer = props => {
                 }}>
                 {userData?.userEmail || 'No Email'}
               </Text>
-              <Text style={{marginBottom: 2}}>
-                 Consultant: {userData.userLinkedConsultantName || 'N/A'}
+              <Text style={{marginBottom: 2,
+                color: '#fff',
+                fontSize: 14,
+                fontFamily: 'Roboto-Regular'}}>
+                  Consultant: {userData.userLinkedConsultantName || 'N/A'}
               </Text>
             </>
           )}
