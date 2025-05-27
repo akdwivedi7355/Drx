@@ -160,10 +160,10 @@ export const getUserDefaultDetails = async () => {
     const newHeaders = { u: newCreds.u };
     res = await post('/DefaultValues', {}, newHeaders);
   }
-
-  // if (res.status && res.data) {
-  //   await storeToAsyncStorage('user_details', res.data);
-  // }
+  console.log("res", res);
+  if (res.status && res.data) {
+    await storeToAsyncStorage('user_details', res.data);
+  }
 
   return res;
 };
