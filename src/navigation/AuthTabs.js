@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -24,8 +24,28 @@ const AuthTabs = () => {
   const [input, setInput] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  
 
   const dispatch = useDispatch();
+  const testUsers = [
+    { username: 'test', password: '3' },
+    { username: 'testuser2', password: 'password2' },
+    { username: 'testuser3', password: 'password3' },
+  ];
+
+  useEffect(() => {
+    const autoLogin = async () => {
+      const user = testUsers.find(u => u.username === 'test');
+      if (user) {
+        setInput(user.username);
+        setPassword(user.password);
+        handleLogin();
+      } else {
+        Alert.alert('Error', 'User not found.');
+      }
+    };
+    autoLogin();
+  },);
 
   const handleLogin = async () => {
     if (!input || (useOtp && !password)) {

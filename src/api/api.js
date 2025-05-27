@@ -106,7 +106,7 @@ export const verifyOtp = async (authType, loginId, otpValue) => {
     loginId: encrypt(loginId),
     otpValue: encrypt(otpValue),
   };
-  const res = await post('/VerifyOtp', payload);
+  const res = await post('/VerifyOTP', payload);
   if (res.status && res.data) {
     await storeToAsyncStorage('auth_credentials', {
       loginId: res.data.loginId,
@@ -176,4 +176,65 @@ export const getStoredCredentials = async () => {
 
 export const getStoredUserDetails = async () => {
   return await getFromAsyncStorage('user_details');
+};
+
+
+/* ABHA Verification Functions */
+
+export const initiateAbhaVerification = async (abhaAddress) => {
+  const payload = {
+    abhaAddress,
+    initMode: '0',
+  };
+  const creds = await getFromAsyncStorage('auth_credentials');
+  if (!creds) return { status: false, errorMessage: 'No session found' };
+
+  const headers = { u: creds.u };
+  return await post('/InitiateAbhaVerify', payload, headers);
+};
+
+export const requestAbhaOtp = async (
+  ia_Token,
+  abhaTokenId,
+  selectedMode,
+  abhaAddress
+) => {
+  const payload = {
+    ia_Token,
+    abhaTokenId,
+    selectedMode,
+    initMode: '',
+    abhaAddress,
+  };
+  const creds = await getFromAsyncStorage('auth_credentials');
+  if (!creds) return { status: false, errorMessage: 'No session found' };
+
+  const headers = { u: creds.u };
+  return await post('/VerbalRequestOTP', payload, headers);
+};
+
+export const confirmAbhaOtp = async (
+  abhaTokenId,
+  ia_Token,
+  abhaAddress,
+  abhaNumber,
+  transactionId,
+  authCode,
+  selectedMode
+) => {
+  const payload = {
+    abhaTokenId,
+    ia_Token,
+    abhaddress: abhaAddress,
+    abhaNumber,
+    transactionId,
+    authCode,
+    initMode: '0',
+    selectedMode,
+  };
+  const creds = await getFromAsyncStorage('auth_credentials');
+  if (!creds) return { status: false, errorMessage: 'No session found' };
+
+  const headers = { u: creds.u };
+  return await post('/VerbalConfirmOTP', payload, headers);
 };
