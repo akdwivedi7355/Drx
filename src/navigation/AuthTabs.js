@@ -24,7 +24,7 @@ const AuthTabs = () => {
   const [input, setInput] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  
+
 
   const dispatch = useDispatch();
   const testUsers = [

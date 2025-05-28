@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -9,13 +9,15 @@ import {
   Platform,
   ScrollView,
   Button,
-  Alert
+  Alert,
+  Keyboard
 } from 'react-native';
 import { useForm, Controller } from 'react-hook-form';
 import DateTimePicker from 'react-native-date-picker';
 import { Picker } from '@react-native-picker/picker';
 import Icon from 'react-native-vector-icons/Ionicons';
 import ABHAModal from './Abhamodal';
+import { verifyAbdmStatus } from '../api/api';
 
 const PatientForm = () => {
   const { control, handleSubmit, setValue, watch, reset } = useForm();
@@ -23,6 +25,37 @@ const PatientForm = () => {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [age, setAge] = useState('');
   const [modelVisible, setmodelVisible] = useState(false);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+
+  const [selectedState, setSelectedState] = useState('');
+  const [selectedDistrict, setSelectedDistrict] = useState('');
+
+  const handleStateChange = (state) => {
+    setSelectedState(state);
+    setSelectedDistrict(''); // Reset district when state changes
+  };
+
+  const stateDistrictData = {
+    "UTTAR PRADESH": ["UNNAO", "KANPUR", "Lucknow"],
+    "Maharashtra": ["Mumbai", "Pune", "Nagpur"],
+    // Add other states and their districts
+  };
+
+
+  useEffect(() => {
+    const showSubscription = Keyboard.addListener('keyboardDidShow', () => {
+      console.log('Keyboard is visible');
+      setKeyboardVisible(true);
+    });
+    const hideSubscription = Keyboard.addListener('keyboardDidHide', () => {
+      setKeyboardVisible(false);
+    });
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
 
   const calculateAge = (dobString) => {
     const today = new Date();
@@ -45,20 +78,73 @@ const PatientForm = () => {
     }
   };
 
-  const handleABDMSearch = () => {
-    if (abdmID.trim()) {
-      setValue('firstName', 'Sarvesh');
-      setValue('middleName', 'Kumar');
-      setValue('lastName', 'Pandey');
-      setValue('dob', '1994-08-24');
-      setValue('gender', 'Male');
-      setValue('mobile', '8419801975');
-      setValue('email', 'sarkumpan@gmail.com');
-      setValue('address', '119/508 Darshan Purwa, Kanpur-UP');
-      const calculatedAge = calculateAge('1994-08-24');
-      setAge(calculatedAge.toString());
+
+const handleABDMSearch = async () => {
+  console.log('ABDM ID:', abdmID);
+
+  if (!abdmID.trim()) return;
+
+  // Determine type based on input pattern
+  let type = '';
+  const trimmedID = abdmID.trim();
+
+  if (/^\d+$/.test(trimmedID)) {
+    // All numeric
+    type = trimmedID.length < 5 ? '2' : '0'; // ia_Token or AbhaNumber
+  } else {
+    // Alphanumeric
+    type = '1'; // AbhaAddress
+  }
+
+  try {
+    console.log('Searching ABDM with type:', type, 'and ID:', trimmedID);
+    const response = await verifyAbdmStatus(type, trimmedID);
+
+    if (response.status && response.data) {
+      const user = response.data;
+      const { yearOfBirth, monthOfBirth, dayOfBirth } = user;
+
+        if (!yearOfBirth || !monthOfBirth || !dayOfBirth) {
+          console.warn('Incomplete DOB data:', { yearOfBirth, monthOfBirth, dayOfBirth });
+          return;
+        }
+
+        const dateOfBirth = `${yearOfBirth}-${monthOfBirth.toString().padStart(2, '0')}-${dayOfBirth.toString().padStart(2, '0')}`;
+        const calculatedAge = calculateAge(dateOfBirth);
+
+        console.log('Date of Birth:', dateOfBirth);
+        console.log('Calculated Age:', calculatedAge);
+        console.log('User Data:', stateDistrictData);
+
+        setValue('firstName', user.name?.split(' ')[0] || '');
+        setValue('middleName', user.name?.split(' ')[1] || '');
+        setValue('lastName', user.name?.split(' ')[2] || '');
+        setValue('dob', dateOfBirth);
+        setValue('gender', user.gender === 'M' ? 'Male' : 'Female');
+        setValue('mobile', user.mobile);
+        setValue('email', '');
+        setValue('address', user.address);
+        setValue('state', user.state_name || '');
+        setValue('district', user.district_name || '');
+        // setValue(); // Store the ABDM ID in the form
+        setSelectedDistrict(user.district_name || '');
+        setSelectedState(user.state_name || '');
+
+        // setSelectedState(itemValue);
+          // setSelectedDistrict('');
+          // setValue('district', '');
+
+        setAge(calculatedAge.toString());
+
+
+    } else {
+      console.warn('ABDM search failed:', response.errorMessage || 'Unknown error');
     }
-  };
+  } catch (err) {
+    console.error('Error during ABDM search:', err);
+  }
+};
+
   const handleverifyabha  = () => {
     setmodelVisible(true);
   }
@@ -69,9 +155,9 @@ const PatientForm = () => {
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={styles.container}
-    >
+    behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    style={[styles.container, { paddingBottom: keyboardVisible ? 300 : 50 }]} // Adjust padding based on keyboard visibility
+  >
       <ScrollView contentContainerStyle={styles.scrollContainer}>
       
 
@@ -100,11 +186,9 @@ const PatientForm = () => {
 
         {/* <Button title="Verify ABHA" onPress={handleverifyabha} color="#007BFF" /> */}
 
-        <ABHAModal modelVisible={modelVisible} setmodelVisible={setmodelVisible} />
+        <ABHAModal modelVisible={modelVisible} setmodelVisible={setmodelVisible}  setAbhaID={setAbdmID}  handleABDMSearch={handleABDMSearch} />
 
         {/* <Text style={styles.title}>Patient Registration Form</Text> */}
-
-        
 
         {/* Name Row */}
         <View style={styles.row}>
@@ -113,7 +197,7 @@ const PatientForm = () => {
             name="firstName"
             render={({ field: { onChange, value } }) => (
               <TextInput
-                style={styles.inputSmall}
+                style={[styles.inputSmall ,{marginRight:10} ]}
                 placeholder="First Name"
                 value={value}
                 onChangeText={onChange}
@@ -125,7 +209,7 @@ const PatientForm = () => {
             name="middleName"
             render={({ field: { onChange, value } }) => (
               <TextInput
-                style={styles.inputSmall}
+              style={[styles.inputSmall ,{marginRight:10} ]}
                 placeholder="Middle Name"
                 value={value}
                 onChangeText={onChange}
@@ -158,7 +242,7 @@ const PatientForm = () => {
             )}
           />
           <TextInput
-            style={styles.inputSmall}
+            style={[styles.inputSmall ,{ marginLeft:10}]}
             placeholder="Age"
             value={age}
             editable={false}
@@ -181,6 +265,7 @@ const PatientForm = () => {
         />
 
 
+
         {/* Gender Dropdown */}
         <Controller
           control={control}
@@ -201,6 +286,71 @@ const PatientForm = () => {
           )}
         />
 
+{/* <View style={styles.pickerContainer}>
+      <Picker
+        selectedValue={selectedState}
+        onValueChange={handleStateChange}
+        style={styles.picker}
+      >
+        <Picker.Item label="Select State" value="" />
+        {Object.keys(stateDistrictData).map((state) => (
+          <Picker.Item key={state} label={state} value={state} />
+        ))}
+      </Picker>
+      </View> */}
+
+      {/* District Picker */}
+     {/* State Picker */}
+<Controller
+  control={control}
+  name="state"
+  render={({ field: { onChange, value } }) => (
+    <View style={styles.pickerContainer}>
+      <Picker
+        selectedValue={value}
+        onValueChange={(itemValue) => {
+          onChange(itemValue);
+          setSelectedState(itemValue);
+          setSelectedDistrict('');
+          setValue('district', '');
+        }}
+        style={styles.picker}
+      >
+        <Picker.Item label="Select State" value="" />
+        {Object.keys(stateDistrictData).map((state) => (
+          <Picker.Item key={state} label={state} value={state} />
+        ))}
+      </Picker>
+    </View>
+  )}
+/>
+
+{/* District Picker */}
+{watch('state') !== '' && (
+  <Controller
+    control={control}
+    name="district"
+    render={({ field: { onChange, value } }) => (
+      <View style={styles.pickerContainer}>
+        <Picker
+          selectedValue={value}
+          onValueChange={(itemValue) => {
+            onChange(itemValue);
+            setSelectedDistrict(itemValue);
+          }}
+          style={styles.picker}
+        >
+          <Picker.Item label="Select District" value="" />
+          {(stateDistrictData[watch('state')] || []).map((district)=> (
+            <Picker.Item key={district} label={district} value={district} />
+          ))}
+        </Picker>
+      </View>
+    )}
+  />
+)}
+
+
         {/* Mobile */}
         <Controller
           control={control}
@@ -215,6 +365,8 @@ const PatientForm = () => {
             />
           )}
         />
+       
+
 
         {/* Email */}
         <Controller
@@ -261,6 +413,7 @@ const styles = StyleSheet.create({
     flex: 1,
     // padding: 10,
     backgroundColor: '#f5f7fa',
+    paddingBottom: 50,
   },
   // scrollContainer: {
   //   paddingBottom: 60,
@@ -298,14 +451,18 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 15,
+    // alignItems: 'center',
+    // paddingHorizontal: 10,
   },
   inputSmall: {
     flex: 1,
     backgroundColor: '#fff',
     borderRadius: 10,
     padding: 12,
-    marginHorizontal: 5,
+    
+    // marginHorizontal: 5,
     fontSize: 16,
     elevation: 2,
     shadowColor: '#000',

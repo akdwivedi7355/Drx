@@ -203,9 +203,10 @@ export const requestAbhaOtp = async (
     ia_Token,
     abhaTokenId,
     selectedMode,
-    initMode: '',
+    initMode: '0',
     abhaAddress,
   };
+  console.log("payload", payload);
   const creds = await getFromAsyncStorage('auth_credentials');
   if (!creds) return { status: false, errorMessage: 'No session found' };
 
@@ -237,4 +238,18 @@ export const confirmAbhaOtp = async (
 
   const headers = { u: creds.u };
   return await post('/VerbalConfirmOTP', payload, headers);
+};
+
+
+export const verifyAbdmStatus = async (type, value) => {
+  const creds = await getFromAsyncStorage('auth_credentials');
+  if (!creds) return { status: false, errorMessage: 'No session found' };
+
+  const payload = {
+    type: type.toString(),
+    value: value,
+  };
+
+  const headers = { u: creds.u };
+  return await post('AbhaVerifyStatus', payload, headers);
 };

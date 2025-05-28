@@ -5,87 +5,194 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  ActivityIndicator,
   StyleSheet,
 } from 'react-native';
-import { initiateAbhaVerification } from '../api/api';
+import { confirmAbhaOtp, initiateAbhaVerification, requestAbhaOtp, verifyAbhaOtp } from '../api/api'; // Update with actual APIs
 
-const ABHAModal = ({ modelVisible, setmodelVisible }) => {
+const ABHAModal = ({ modelVisible, setmodelVisible ,setAbhaID, handleABDMSearch}) => {
   const [inputId, setInputId] = useState('');
   const [selectedMode, setSelectedMode] = useState(null);
+  const [step, setStep] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [availableModes, setAvailableModes] = useState([]);
+  const [otp, setOtp] = useState('');
+  const [abhaData, setAbhaData] = useState(null);
+  const [transactionId , setTransactionId] = useState(null);
 
   const verificationModes = [
     { id: 'abhaNumber', label: 'ABHA Number', placeholder: 'Enter ABHA Number' },
-    { id: 'abhaAddress', label: 'ABHA Address', placeholder: 'Enter ABHA Address' }
+    { id: 'abhaAddress', label: 'ABHA Address', placeholder: 'Enter ABHA Address'},
   ];
 
-  const toggleMode = (mode) => {
-    setSelectedMode(mode === selectedMode ? null : mode);
-    setInputId(''); // reset input when mode changes
+  const handleNext = async () => {
+    if (!inputId) return alert('Please enter your ABHA details');
+    setLoading(true);
+    try {
+      const res = await initiateAbhaVerification(inputId); // API call
+      console.log(res);
+
+      setAbhaData(res.data);
+      setAvailableModes(res?.data?.modes || []);
+      console.log('Available Modes:', res.data,res?.data?.modes);
+      setStep(2); // move to next step
+    } catch (err) {
+      alert('Verification failed');
+    }
+    setLoading(false);
   };
 
-  const nextStep = async () => {
-    if (!inputId) {
-      alert('Please enter your ABHA details');
-      return;
+  const handleModeSelect = async (mode) => {
+    setSelectedMode(mode);
+    setLoading(true);
+
+
+    try {
+      // This is where you'd call second API based on selected mode
+      console.log('Selected Mode:', mode);
+      const response = await requestAbhaOtp(abhaData.ia_Token, abhaData.abhaTokenId, mode, inputId); // Replace with real API
+      // simu late API delay
+      // await new Promise(resolve => setTimeout(resolve, 1000));
+      if (response.status) {
+        console.log('OTP Request Successful:', response);
+        setTransactionId(response.data.transactionId); // Store transaction ID if needed
+        setStep(3);
+        alert('OTP sent successfully!');
+      } else {
+        console.error('OTP Request Failed:', response.errorMessage);
+        alert('Failed to send OTP: ' + response.errorMessage);
+      }
+    } catch (err) {
+      alert('Failed to initiate OTP');
     }
-    const res = await initiateAbhaVerification(inputId);
-    if(res){
-        console.log('ABHA verification initiated successfully:', res);
-        // alert('ABHA verification initiated successfully');
-        }
-    // Handle the next step logic here, e.g., API call or navigation
-    console.log(`Selected Mode: ${selectedMode}, Input ID: ${inputId}`);
-    // setmodelVisible(false); // Close the modal after next step
+    setLoading(false);
+  };
+
+  const handleOtpVerify = async () => {
+    if (!otp) return alert('Please enter OTP');
+    setLoading(true);
+    try {
+      const response = await confirmAbhaOtp(  abhaData.abhaTokenId,abhaData.ia_Token,abhaData. abhaAddress, abhaData.abhaNumber,transactionId, otp,selectedMode); 
+      console.log('OTP Verified:', response);
+      // alert('Verification successful!');
+      if (response.status) {
+      
+        setmodelVisible(false);
+      setStep(1); // Reset to first step
+      console.log('ABHA Address:', abhaData.abhaAddress);
+      setAbhaID(abhaData.abhaAddress);
+      console.log('ABHA Address:', abhaData.abhaAddress);
+      
+      handleABDMSearch();
+      console.log('ABDM Search Triggered');
+      
+      clearFields();
+        alert('Verification successful!');
+      } else {
+        alert('Verification failed: ' + response.errorMessage);
+      }
+    } catch (err) {
+      alert('Invalid OTP');
+    }
+    setLoading(false);
+  };
+
+  const clearFields = () => {
+    setInputId('');
+    setSelectedMode(null);
+    setStep(1);
+    setLoading(false);
+    setAvailableModes([]);
+    setOtp('');
+    setAbhaData(null);
+    setTransactionId(null);
   };
 
   const selectedOption = verificationModes.find((m) => m.id === selectedMode);
 
-  return (
-    <Modal visible={modelVisible} transparent animationType="fade">
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContainer}>
-          <Text style={styles.modalTitle}>Enter ABHA Details</Text>
+  const renderStepContent = () => {
+    if (step === 1) {
+      return (
+        <>
           <Text style={styles.subTitle}>Select Verification Mode</Text>
-
-          <View style={styles.radioGroup}>
-            {verificationModes.map((mode) => (
-              <TouchableOpacity
-                key={mode.id}
-                style={styles.radioOption}
-                onPress={() => toggleMode(mode.id)}
-                activeOpacity={0.7}
-              >
-                <View style={styles.radioOuter}>
-                  {selectedMode === mode.id && <View style={styles.radioInner} />}
-                </View>
-                <Text style={styles.radioLabel}>{mode.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          <Text style={styles.subTitle}>
-            {selectedOption ? `Enter ${selectedOption.label}` : 'Enter ABHA Number or Address'}
-          </Text>
+          {verificationModes.map((mode) => (
+            <TouchableOpacity
+              key={mode.id}
+              style={styles.radioOption}
+              onPress={() => {
+                setSelectedMode(mode.id);
+                setInputId('');
+              }}
+            >
+              <View style={styles.radioOuter}>
+                {selectedMode === mode.id && <View style={styles.radioInner} />}
+              </View>
+              <Text style={styles.radioLabel}>{mode.label}</Text>
+            </TouchableOpacity>
+          ))}
 
           <TextInput
             style={styles.input}
-            placeholder={selectedOption ? selectedOption.placeholder : 'Enter ABHA ID'}
+            placeholder={selectedOption ? selectedOption.placeholder : 'Enter ABHA details'}
             value={inputId}
             onChangeText={setInputId}
             keyboardType={selectedMode === 'abhaNumber' ? 'numeric' : 'default'}
           />
 
-          <TouchableOpacity 
-            onPress={nextStep}
-          style={styles.verifyButton}>
-            <Text style={styles.verifyButtonText}>Next</Text>
+          <TouchableOpacity style={styles.verifyButton} onPress={handleNext}>
+            {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.verifyButtonText}>Next</Text>}
           </TouchableOpacity>
+        </>
+      );
+    } else if (step === 2) {
+      return (
+        <>
+          <Text style={styles.subTitle}>Select Authentication Mode</Text>
+          {availableModes.map((mode) => (
+            <TouchableOpacity
+            value={mode}
+              key={mode}
 
-          <TouchableOpacity
-            onPress={() => setmodelVisible(false)}
-            style={styles.cancelButton}
-          >
-            <Text style={{ color: '#999' }}>Cancel</Text>
+              style={styles.radioOption}
+              // style={[styles.otpButton, selectedMode === mode && styles.selectedButton]}
+              onPress={() => handleModeSelect(mode)}
+            >
+              <View style={styles.radioOuter}>
+                {selectedMode === mode.id && <View style={styles.radioInner} />}
+              </View>
+              <Text style={styles.radioLabel}>{mode}</Text>
+            </TouchableOpacity>
+          ))}
+          {loading && <ActivityIndicator style={{ marginTop: 10 }} />}
+        </>
+      );
+    } else if (step === 3) {
+      return (
+        <>
+          <Text style={styles.subTitle}>Enter OTP</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Enter OTP"
+            value={otp}
+            onChangeText={setOtp}
+            keyboardType="numeric"
+          />
+          <TouchableOpacity style={styles.verifyButton} onPress={handleOtpVerify}>
+            {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.verifyButtonText}>Verify</Text>}
+          </TouchableOpacity>
+        </>
+      );
+    }
+  };
+
+  return (
+    <Modal visible={modelVisible} transparent animationType="fade">
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContainer}>
+          <Text style={styles.modalTitle}>ABHA Verification</Text>
+          {renderStepContent()}
+          <TouchableOpacity onPress={() => {clearFields(); setmodelVisible(false)}} style={styles.cancelButton}>
+            <Text style={styles.cancelBttonText}>Close</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -94,6 +201,9 @@ const ABHAModal = ({ modelVisible, setmodelVisible }) => {
 };
 
 export default ABHAModal;
+
+// Keep your styles here (unchanged)...
+
 
 
 const styles = StyleSheet.create({
@@ -164,8 +274,19 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   cancelButton: {
-    alignItems: 'center',
     marginTop: 10,
+    // backgroundColor: '#e74c3c',
+    backgroundColor: '#bdc3c7',
+    borderColor: '#e74c3c',
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  cancelBttonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
   radioGroup: {
     flexDirection: 'column',
