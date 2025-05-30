@@ -1,8 +1,8 @@
 /* eslint-disable react-native/no-inline-styles */
 /* eslint-disable react/no-unstable-nested-components */
-import React, {useState} from 'react';
-import {View, TouchableOpacity, Text, StyleSheet} from 'react-native';
-import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
+import React, { useState } from 'react';
+import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import PatientDetail from './tabs/PatientDetail';
 import PatientReport from './tabs/PatientReport';
 import PatientHistory from './tabs/PatientHistory';
@@ -10,15 +10,14 @@ import Icon from 'react-native-vector-icons/Ionicons';
 
 const Tab = createBottomTabNavigator();
 
-const PatientTabs = ({route}) => {
-  const {patientId, initialTab} = route.params || {};
+const PatientTabs = ({ route }) => {
+  const { patientId, initialTab } = route.params || {};
   const [fabVisible, setFabVisible] = useState(false);
 
   const handleFabOption = (navigation, tabName) => {
     navigation.navigate(tabName);
     setFabVisible(false);
   };
-
   return (
     <Tab.Navigator
       initialRouteName={
@@ -26,19 +25,19 @@ const PatientTabs = ({route}) => {
       }
       screenOptions={{
         tabBarActiveTintColor: 'purple',
-        tabBarStyle: {backgroundColor: '#f8f8f8'},
+        tabBarStyle: { backgroundColor: '#f8f8f8' },
         headerShown: false,
       }}>
       <Tab.Screen
         name="Detail"
         options={{
           tabBarLabel: 'Detail',
-          tabBarIcon: ({color, size}) => (
+          tabBarIcon: ({ color, size }) => (
             <Icon name="document-text" size={size} color={color} />
           ),
         }}>
         {props => (
-          <View style={{flex: 1}}>
+          <View style={{ flex: 1 }}>
             <PatientDetail {...props} patientId={patientId} />
             {fabVisible && (
               <View style={styles.fabMenu}>
@@ -69,12 +68,12 @@ const PatientTabs = ({route}) => {
         name="Report"
         options={{
           tabBarLabel: 'Report',
-          tabBarIcon: ({color, size}) => (
+          tabBarIcon: ({ color, size }) => (
             <Icon name="bar-chart" size={size} color={color} />
           ),
         }}>
         {props => (
-          <View style={{flex: 1}}>
+          <View style={{ flex: 1 }}>
             <PatientReport {...props} patientId={patientId} />
             <TouchableOpacity
               style={styles.fab}
@@ -105,12 +104,12 @@ const PatientTabs = ({route}) => {
         name="History"
         options={{
           tabBarLabel: 'History',
-          tabBarIcon: ({color, size}) => (
+          tabBarIcon: ({ color, size }) => (
             <Icon name="time" size={size} color={color} />
           ),
         }}>
         {props => (
-          <View style={{flex: 1}}>
+          <View style={{ flex: 1 }}>
             <PatientHistory {...props} patientId={patientId} />
             <TouchableOpacity
               style={styles.fab}

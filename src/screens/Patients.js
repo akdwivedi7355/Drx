@@ -1,3 +1,9 @@
+/* eslint-disable curly */
+/* eslint-disable react-native/no-inline-styles */
+/* eslint-disable no-alert */
+/* eslint-disable no-shadow */
+/* eslint-disable quotes */
+/* eslint-disable no-unused-vars */
 import React, { useEffect, useState } from 'react';
 import {
   View,
@@ -8,9 +14,8 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Button,
   Alert,
-  Keyboard
+  Keyboard,
 } from 'react-native';
 import { useForm, Controller } from 'react-hook-form';
 import DateTimePicker from 'react-native-date-picker';
@@ -26,17 +31,17 @@ const PatientForm = () => {
   const [age, setAge] = useState('');
   const [modelVisible, setmodelVisible] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const [editable, setEditable] = useState(true);
 
   const [selectedState, setSelectedState] = useState('');
   const [selectedDistrict, setSelectedDistrict] = useState('');
-
   const handleStateChange = (state) => {
     setSelectedState(state);
     setSelectedDistrict(''); // Reset district when state changes
   };
 
   const stateDistrictData = {
-    "UTTAR PRADESH": ["UNNAO", "KANPUR", "Lucknow"],
+    "UTTAR PRADESH": ["UNNAO", "KANPUR NAGAR", "Lucknow"],
     "Maharashtra": ["Mumbai", "Pune", "Nagpur"],
     // Add other states and their districts
   };
@@ -78,31 +83,65 @@ const PatientForm = () => {
     }
   };
 
+  const formatAbhaNumber = (number) => {
+    // Return if already formatted
+    if (number.includes('-')) {
+      return number;
+    }
+    // Remove all non-digit characters
+    let formattedNumber = number.replace(/\D/g, '');
+    // Validate length
+    if (formattedNumber.length !== 14) {
+      alert('ABHA Number must be 14 digits');
+      return '';
+    }
+    // Format as XX-XXXX-XXXX-XXXX
+    return `${formattedNumber.slice(0, 2)}-${formattedNumber.slice(2, 6)}-${formattedNumber.slice(6, 10)}-${formattedNumber.slice(10)}`;
+  };
 
-const handleABDMSearch = async () => {
-  console.log('ABDM ID:', abdmID);
+  const handleABDMSearch = async () => {
+    console.log('ABDM ID:', abdmID);
 
-  if (!abdmID.trim()) return;
+    if (!abdmID.trim()) {
+      Alert.alert('Error', 'Please enter a valid ABHA address or Number');
+      setEditable(true); // Make fields editable again
+      handleclearFields(); // Clear fields if input is empty
+      return;
+    }
 
-  // Determine type based on input pattern
-  let type = '';
-  const trimmedID = abdmID.trim();
+    // Determine type based on input pattern
+    let type = '';
+    let trimmedID = abdmID.trim();
 
-  if (/^\d+$/.test(trimmedID)) {
-    // All numeric
-    type = trimmedID.length < 5 ? '2' : '0'; // ia_Token or AbhaNumber
-  } else {
-    // Alphanumeric
-    type = '1'; // AbhaAddress
-  }
+    if (/^[\d-]+$/.test(trimmedID)) {
+      // All numeric
+      type = trimmedID.length < 5 ? '2' : '0'; // ia_Token or AbhaNumber
 
-  try {
-    console.log('Searching ABDM with type:', type, 'and ID:', trimmedID);
-    const response = await verifyAbdmStatus(type, trimmedID);
+      if (trimmedID.length >= 14) {
+        // Format ABHA Number
+        const formattedNumber = formatAbhaNumber(trimmedID);
+        if (!formattedNumber) return; // If formatting failed, exit
+        setAbdmID(formattedNumber); // Update state with formatted number
+        trimmedID = formattedNumber; // Use formatted number for search
+      }
+    } else {
+      // Alphanumeric
+      type = '1'; // AbhaAddress
+    }
 
-    if (response.status && response.data) {
-      const user = response.data;
-      const { yearOfBirth, monthOfBirth, dayOfBirth } = user;
+    try {
+      console.log('Searching ABDM with type:', type, 'and ID:', trimmedID);
+      const response = await verifyAbdmStatus(type, trimmedID);
+
+      if (response.status && response.data) {
+        if (response.data.abhaNumber === undefined || response.data.abhaNumber === null) {
+          setEditable(true); // Make fields editable again
+          handleclearFields();
+          Alert.alert('ABDM Search Failed', response.data.statusRemark || 'ABDM Number not found');
+          return;
+        }
+        const user = response.data;
+        const { yearOfBirth, monthOfBirth, dayOfBirth } = user;
 
         if (!yearOfBirth || !monthOfBirth || !dayOfBirth) {
           console.warn('Incomplete DOB data:', { yearOfBirth, monthOfBirth, dayOfBirth });
@@ -115,10 +154,20 @@ const handleABDMSearch = async () => {
         console.log('Date of Birth:', dateOfBirth);
         console.log('Calculated Age:', calculatedAge);
         console.log('User Data:', stateDistrictData);
+        const nameParts = user.name?.trim().split(/\s+/) || [];
 
-        setValue('firstName', user.name?.split(' ')[0] || '');
-        setValue('middleName', user.name?.split(' ')[1] || '');
-        setValue('lastName', user.name?.split(' ')[2] || '');
+        if (nameParts.length === 2) {
+          // Only First and Last Name
+          setValue('firstName', nameParts[0]);
+          setValue('middleName', '');
+          setValue('lastName', nameParts[1]);
+        } else {
+          // First, Middle, Last (or fallback to empty strings)
+          setValue('firstName', nameParts[0] || '');
+          setValue('middleName', nameParts[1] || '');
+          setValue('lastName', nameParts[2] || '');
+        }
+
         setValue('dob', dateOfBirth);
         setValue('gender', user.gender === 'M' ? 'Male' : 'Female');
         setValue('mobile', user.mobile);
@@ -129,38 +178,141 @@ const handleABDMSearch = async () => {
         // setValue(); // Store the ABDM ID in the form
         setSelectedDistrict(user.district_name || '');
         setSelectedState(user.state_name || '');
+        setEditable(false);
 
         // setSelectedState(itemValue);
-          // setSelectedDistrict('');
-          // setValue('district', '');
+        // setSelectedDistrict('');
+        // setValue('district', '');
 
         setAge(calculatedAge.toString());
 
 
-    } else {
-      console.warn('ABDM search failed:', response.errorMessage || 'Unknown error');
+      } else {
+        setEditable(true); // Make fields editable again
+        handleclearFields();
+        Alert.alert('ABDM Search Failed', response.errorMessage || 'Unknown error');
+        console.warn('ABDM search failed:', response.errorMessage || 'Unknown error');
+      }
+    } catch (err) {
+      handleclearFields();
+      setEditable(true); // Make fields editable again
+      Alert.alert('Error', 'Failed to search ABDM. Please try again.');
+      console.error('Error during ABDM search:', err);
     }
-  } catch (err) {
-    console.error('Error during ABDM search:', err);
-  }
-};
+  };
 
-  const handleverifyabha  = () => {
+  const handleAutoABDMSearch = async (passingabdmsearchid) => {
+    console.log('ABDM ID:', abdmID);
+
+    if (!passingabdmsearchid.trim()) return;
+
+    // Determine type based on input pattern
+    let type = '';
+    const trimmedID = passingabdmsearchid.trim();
+
+    if (/^\d+$/.test(trimmedID)) {
+      // All numeric
+      type = trimmedID.length < 5 ? '2' : '0'; // ia_Token or AbhaNumber
+    } else {
+      // Alphanumeric
+      type = '1'; // AbhaAddress
+    }
+
+    try {
+      console.log('Searching ABDM with type:', type, 'and ID:', trimmedID);
+      const response = await verifyAbdmStatus(type, trimmedID);
+
+      if (response.status && response.data) {
+        if (response.data.abhaNumber === undefined || response.data.abhaNumber === null) {
+          handleclearFields();
+          Alert.alert('ABDM Search Failed', response.data.statusRemark || 'ABDM Number not found');
+          return;
+        }
+        const user = response.data;
+        const { yearOfBirth, monthOfBirth, dayOfBirth } = user;
+
+        if (!yearOfBirth || !monthOfBirth || !dayOfBirth) {
+          console.warn('Incomplete DOB data:', { yearOfBirth, monthOfBirth, dayOfBirth });
+          return;
+        }
+
+        const dateOfBirth = `${yearOfBirth}-${monthOfBirth.toString().padStart(2, '0')}-${dayOfBirth.toString().padStart(2, '0')}`;
+        const calculatedAge = calculateAge(dateOfBirth);
+
+        console.log('Date of Birth:', dateOfBirth);
+        console.log('Calculated Age:', calculatedAge);
+        console.log('User Data:', stateDistrictData);
+        const nameParts = user.name?.trim().split(/\s+/) || [];
+
+        if (nameParts.length === 2) {
+          // Only First and Last Name
+          setValue('firstName', nameParts[0]);
+          setValue('middleName', '');
+          setValue('lastName', nameParts[1]);
+        } else {
+          // First, Middle, Last (or fallback to empty strings)
+          setValue('firstName', nameParts[0] || '');
+          setValue('middleName', nameParts[1] || '');
+          setValue('lastName', nameParts[2] || '');
+        }
+        setValue('dob', dateOfBirth);
+        setValue('gender', user.gender === 'M' ? 'Male' : 'Female');
+        setValue('mobile', user.mobile);
+        setValue('email', '');
+        setValue('address', user.address);
+        setValue('state', user.state_name || '');
+        setValue('district', user.district_name || '');
+        // setValue(); // Store the ABDM ID in the form
+        setSelectedDistrict(user.district_name || '');
+        setSelectedState(user.state_name || '');
+        setEditable(false);
+
+        // setSelectedState(itemValue);
+        // setSelectedDistrict('');
+        // setValue('district', '');
+
+        setAge(calculatedAge.toString());
+
+
+      } else {
+        handleclearFields();
+        Alert.alert('ABDM Search Failed', response.errorMessage || 'Unknown error');
+        console.warn('ABDM search failed:', response.errorMessage || 'Unknown error');
+      }
+    } catch (err) {
+      handleclearFields();
+      Alert.alert('Error', 'Failed to search ABDM. Please try again.');
+      console.error('Error during ABDM search:', err);
+    }
+  };
+
+  const handleclearFields = () => {
+    reset();
+    setAbdmID('');
+    setAge('');
+    setSelectedState('');
+    setSelectedDistrict('');
+    setmodelVisible(false);
+  };
+
+  const handleverifyabha = () => {
     setmodelVisible(true);
-  }
+  };
 
   const onSubmit = (data) => {
+
     console.log('Submitted Data:', data);
+    Alert.alert('Form Submitted', JSON.stringify(data, null, 2));
+    console.log('Form Submitted', JSON.stringify(data, null, 2));
+    handleclearFields();
   };
 
   return (
     <KeyboardAvoidingView
-    behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    style={[styles.container, { paddingBottom: keyboardVisible ? 300 : 50 }]} // Adjust padding based on keyboard visibility
-  >
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      style={[styles.container, { paddingBottom: keyboardVisible ? 300 : 50 }]} // Adjust padding based on keyboard visibility
+    >
       <ScrollView contentContainerStyle={styles.scrollContainer}>
-      
-
         {/* ABDM ID Input */}
         <View style={styles.abdmContainer}>
           <TextInput
@@ -177,16 +329,20 @@ const handleABDMSearch = async () => {
         </View>
 
         <View style={styles.abhaContainer}>
-  <Text style={styles.abhaText}>Want to verify ABHA?</Text>
-  <TouchableOpacity onPress={() => setmodelVisible(true)}>
-    <Text style={styles.verifyAbha}> Verify ABHA</Text>
-  </TouchableOpacity>
-</View>
-
+          <Text style={styles.abhaText}>Want to verify ABHA?</Text>
+          <TouchableOpacity onPress={() => setmodelVisible(true)}>
+            <Text style={styles.verifyAbha}> Verify ABHA</Text>
+          </TouchableOpacity>
+        </View>
 
         {/* <Button title="Verify ABHA" onPress={handleverifyabha} color="#007BFF" /> */}
 
-        <ABHAModal modelVisible={modelVisible} setmodelVisible={setmodelVisible}  setAbhaID={setAbdmID}  handleABDMSearch={handleABDMSearch} />
+        <ABHAModal
+          modelVisible={modelVisible}
+          setmodelVisible={setmodelVisible}
+          setAbhaID={setAbdmID}
+          handleAutoABDMSearch={handleAutoABDMSearch}
+        />
 
         {/* <Text style={styles.title}>Patient Registration Form</Text> */}
 
@@ -197,34 +353,74 @@ const handleABDMSearch = async () => {
             name="firstName"
             render={({ field: { onChange, value } }) => (
               <TextInput
-                style={[styles.inputSmall ,{marginRight:10} ]}
+                style={[
+                  styles.inputSmall,
+                  { marginRight: 10 },
+                  editable ? styles.editableInput : styles.disabledInput,
+                ]}
                 placeholder="First Name"
+
+                placeholderTextColor="#AAB6C3"
                 value={value}
                 onChangeText={onChange}
+                editable={editable} // <-- Make it non-editable
+                selectTextOnFocus={false} // Optional: prevent selecting text
               />
             )}
           />
+          {/* <Controller
+            control={control}
+            name="middleName"
+            render={({ field: { onChange, value } }) => (
+              <TextInput
+                style={[styles.inputSmall, {marginRight:10}]}
+                placeholder="Middle Name"
+                value={value}
+                onChangeText={onChange}
+                editable={editable} // <-- Make it non-editable
+                selectTextOnFocus={false} // Optional: prevent selecting text
+              />
+            )}
+          /> */}
+
           <Controller
             control={control}
             name="middleName"
             render={({ field: { onChange, value } }) => (
               <TextInput
-              style={[styles.inputSmall ,{marginRight:10} ]}
+                style={[
+                  styles.inputSmall,
+                  { marginRight: 10 },
+                  editable ? styles.editableInput : styles.disabledInput,
+                ]}
                 placeholder="Middle Name"
+
+                placeholderTextColor="#AAB6C3"
                 value={value}
                 onChangeText={onChange}
+                editable={editable}
+                selectTextOnFocus={editable}
               />
             )}
           />
+
           <Controller
             control={control}
             name="lastName"
             render={({ field: { onChange, value } }) => (
               <TextInput
-                style={styles.inputSmall}
+                style={[
+                  styles.inputSmall,
+                  { marginRight: 10 },
+                  editable ? styles.editableInput : styles.disabledInput,
+                ]}
                 placeholder="Last Name"
+                // placeholdertextsize="small"
+                placeholderTextColor="#AAB6C3"
                 value={value}
                 onChangeText={onChange}
+                editable={editable} // <-- Make it non-editable
+                selectTextOnFocus={false} // Optional: prevent selecting text
               />
             )}
           />
@@ -236,13 +432,27 @@ const handleABDMSearch = async () => {
             control={control}
             name="dob"
             render={({ field: { value } }) => (
-              <TouchableOpacity onPress={() => setShowDatePicker(true)} style={styles.inputSmall}>
-                <Text>{value || 'DOB (YYYY-MM-DD)'}</Text>
+              <TouchableOpacity
+                onPress={editable ? () => setShowDatePicker(true) : null}
+                style={[
+                  styles.inputSmall,
+                  { justifyContent: 'center' },
+                  editable ? styles.editableInput : styles.disabledInput,
+                ]}
+                activeOpacity={editable ? 0.7 : 1}>
+                <Text style={[styles.dateText, !editable && { color: '#888' }]}>
+                  {value || 'Date of Birth'}
+                </Text>
               </TouchableOpacity>
             )}
           />
+
           <TextInput
-            style={[styles.inputSmall ,{ marginLeft:10}]}
+            style={[
+              styles.inputSmall,
+              { marginLeft: 10 },
+              editable ? styles.editableInput : styles.disabledInput,
+            ]}
             placeholder="Age"
             value={age}
             editable={false}
@@ -254,7 +464,8 @@ const handleABDMSearch = async () => {
           open={showDatePicker}
           date={watch('dob') ? new Date(watch('dob')) : new Date()}
           mode="date"
-          onConfirm={(selectedDate) => {
+          editable={editable}
+          onConfirm={selectedDate => {
             setShowDatePicker(false);
             const formattedDate = selectedDate.toISOString().split('T')[0];
             setValue('dob', formattedDate);
@@ -264,19 +475,21 @@ const handleABDMSearch = async () => {
           onCancel={() => setShowDatePicker(false)}
         />
 
-
-
         {/* Gender Dropdown */}
         <Controller
           control={control}
           name="gender"
           render={({ field: { onChange, value } }) => (
-            <View style={styles.pickerContainer}>
+            <View
+              style={[
+                styles.pickerContainer,
+                editable ? styles.editableInput : styles.disabledInput,
+              ]}>
               <Picker
                 selectedValue={value}
-                onValueChange={onChange}
-                style={styles.picker}
-              >
+                onValueChange={editable ? onChange : () => { }}
+                enabled={editable}
+                style={[styles.picker, !editable && { color: '#888' }]}>
                 <Picker.Item label="Select Gender" value="" />
                 <Picker.Item label="Male" value="Male" />
                 <Picker.Item label="Female" value="Female" />
@@ -286,99 +499,148 @@ const handleABDMSearch = async () => {
           )}
         />
 
-{/* <View style={styles.pickerContainer}>
-      <Picker
-        selectedValue={selectedState}
-        onValueChange={handleStateChange}
-        style={styles.picker}
-      >
-        <Picker.Item label="Select State" value="" />
-        {Object.keys(stateDistrictData).map((state) => (
-          <Picker.Item key={state} label={state} value={state} />
-        ))}
-      </Picker>
-      </View> */}
+        {/* <View style={styles.pickerContainer}>
+                          <Picker
+                            selectedValue={selectedState}
+                            onValueChange={handleStateChange}
+                            style={styles.picker}
+                          >
+                            <Picker.Item label="Select State" value="" />
+                            {Object.keys(stateDistrictData).map((state) => (
+                              <Picker.Item key={state} label={state} value={state} />
+                            ))}
+                          </Picker>
+                          </View> */}
 
-      {/* District Picker */}
-     {/* State Picker */}
-<Controller
-  control={control}
-  name="state"
-  render={({ field: { onChange, value } }) => (
-    <View style={styles.pickerContainer}>
-      <Picker
-        selectedValue={value}
-        onValueChange={(itemValue) => {
-          onChange(itemValue);
-          setSelectedState(itemValue);
-          setSelectedDistrict('');
-          setValue('district', '');
-        }}
-        style={styles.picker}
-      >
-        <Picker.Item label="Select State" value="" />
-        {Object.keys(stateDistrictData).map((state) => (
-          <Picker.Item key={state} label={state} value={state} />
-        ))}
-      </Picker>
-    </View>
-  )}
-/>
+        {/* District Picker */}
+        {/* State Picker */}
+        <Controller
+          control={control}
+          name="state"
+          render={({ field: { onChange, value } }) => (
+            <View
+              style={[
+                styles.pickerContainer,
+                editable ? styles.editableInput : styles.disabledInput,
+              ]}>
+              <Picker
+                selectedValue={value}
+                onValueChange={
+                  editable
+                    ? itemValue => {
+                      onChange(itemValue);
+                      setSelectedState(itemValue);
+                      setSelectedDistrict('');
+                      setValue('district', '');
+                    }
+                    : () => { }
+                }
+                style={[styles.picker, !editable && { color: '#888' }]}
+                enabled={editable}>
+                <Picker.Item label="Select State" value="" />
+                {Object.keys(stateDistrictData).map(state => (
+                  <Picker.Item key={state} label={state} value={state} />
+                ))}
+              </Picker>
+            </View>
+          )}
+        />
 
-{/* District Picker */}
-{watch('state') !== '' && (
-  <Controller
-    control={control}
-    name="district"
-    render={({ field: { onChange, value } }) => (
-      <View style={styles.pickerContainer}>
-        <Picker
-          selectedValue={value}
-          onValueChange={(itemValue) => {
-            onChange(itemValue);
-            setSelectedDistrict(itemValue);
-          }}
-          style={styles.picker}
-        >
-          <Picker.Item label="Select District" value="" />
-          {(stateDistrictData[watch('state')] || []).map((district)=> (
-            <Picker.Item key={district} label={district} value={district} />
-          ))}
-        </Picker>
-      </View>
-    )}
-  />
-)}
-
+        {/* District Picker */}
+        {watch('state') !== '' && (
+          <Controller
+            control={control}
+            name="district"
+            render={({ field: { onChange, value } }) => (
+              <View
+                style={[
+                  styles.pickerContainer,
+                  editable ? styles.editableInput : styles.disabledInput,
+                ]}>
+                <Picker
+                  selectedValue={value}
+                  onValueChange={
+                    editable
+                      ? itemValue => {
+                        onChange(itemValue);
+                        setSelectedDistrict(itemValue);
+                      }
+                      : () => { }
+                  }
+                  style={[styles.picker, !editable && { color: '#888' }]}
+                  enabled={editable}>
+                  <Picker.Item label="Select District" value="" />
+                  {(stateDistrictData[watch('state')] || []).map(district => (
+                    <Picker.Item
+                      key={district}
+                      label={district}
+                      value={district}
+                    />
+                  ))}
+                </Picker>
+              </View>
+            )}
+          />
+        )}
 
         {/* Mobile */}
         <Controller
           control={control}
           name="mobile"
-          render={({ field: { onChange, value } }) => (
-            <TextInput
-              style={styles.input}
-              placeholder="Mobile Number"
-              keyboardType="phone-pad"
-              value={value}
-              onChangeText={onChange}
-            />
+          rules={{
+            required: 'Mobile number is required',
+            pattern: {
+              value: /^\d{10}$/,
+              message: 'Mobile number must be exactly 10 digits',
+            },
+          }}
+          render={({ field: { onChange, value }, fieldState: { error } }) => (
+            <>
+              <TextInput
+                style={[
+                  styles.input,
+                  editable ? styles.editableInput : styles.disabledInput,
+                  error && { borderColor: 'red' }, // highlight error
+                ]}
+                placeholder="Mobile Number"
+                placeholderTextColor="#AAB6C3"
+                keyboardType="phone-pad"
+                value={value}
+                onChangeText={onChange}
+                editable={editable}
+                selectTextOnFocus={editable}
+                maxLength={10} // Optional: restrict input to 10 characters
+              />
+              {error && (
+                <Text style={{ color: 'red', fontSize: 12 }}>
+                  {error.message}
+                </Text>
+              )}
+            </>
           )}
         />
-       
 
-
+        {/* Email */}
         {/* Email */}
         <Controller
           control={control}
           name="email"
-          render={({ field: { onChange, value } }) => (
+          render={({ field: { onChange, value }, fieldState: { error } }) => (
+
             <TextInput
-              style={styles.input}
+              style={[
+                styles.input,
+                editable ? styles.editableInput : styles.disabledInput,
+                // error && { borderColor: 'red' },
+              ]}
               placeholder="Email"
+              placeholderTextColor="#AAB6C3"
               keyboardType="email-address"
               value={value}
               onChangeText={onChange}
+              editable={editable}
+              selectTextOnFocus={editable}
+              autoCapitalize="none"
             />
           )}
         />
@@ -389,19 +651,43 @@ const handleABDMSearch = async () => {
           name="address"
           render={({ field: { onChange, value } }) => (
             <TextInput
-              style={styles.input}
+              style={[
+                styles.input,
+                editable ? styles.editableInput : styles.disabledInput,
+              ]}
               placeholder="Address"
+              placeholderTextColor="#AAB6C3"
               value={value}
               onChangeText={onChange}
+              editable={editable}
+              selectTextOnFocus={editable}
               multiline
             />
           )}
         />
 
         {/* Buttons */}
-        <View style={styles.buttonRow}>
+        {/* <View style={styles.buttonRow}>
           <Button title="Submit" onPress={handleSubmit(onSubmit)} />
           <Button title="Clear" onPress={() => { reset(); setAbdmID(''); setAge(''); }} color="red" />
+        </View> */}
+
+        <View style={styles.buttonRow}>
+          <TouchableOpacity
+            style={styles.submitButton}
+            onPress={handleSubmit(onSubmit)}>
+            <Text style={styles.buttonText}>Submit</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.clearButton}
+            onPress={() => {
+              reset();
+              setAbdmID('');
+              setAge('');
+            }}>
+            <Text style={styles.buttonText}>Clear</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -411,13 +697,9 @@ const handleABDMSearch = async () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    // padding: 10,
     backgroundColor: '#f5f7fa',
     paddingBottom: 50,
   },
-  // scrollContainer: {
-  //   paddingBottom: 60,
-  // },
   title: {
     fontSize: 24,
     fontWeight: '700',
@@ -453,33 +735,20 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 15,
-    // alignItems: 'center',
-    // paddingHorizontal: 10,
   },
   inputSmall: {
     flex: 1,
     backgroundColor: '#fff',
-    borderRadius: 10,
-    padding: 12,
-    
-    // marginHorizontal: 5,
-    fontSize: 16,
     elevation: 2,
     shadowColor: '#000',
     shadowOpacity: 0.1,
-    // shadowOffset: { width: 0, height: 2 },
+    borderWidth: 1,
+    borderColor: '#AAB6C3',
+    borderRadius: 12,
+    padding: 14,
+    color: '#102A68',
+    fontSize: 15,
   },
-  // input: {
-  //   backgroundColor: '#fff',
-  //   borderRadius: 10,
-  //   padding: 12,
-  //   fontSize: 16,
-  //   marginBottom: 15,
-  //   elevation: 2,
-  //   shadowColor: '#000',
-  //   shadowOpacity: 0.1,
-  //   shadowOffset: { width: 0, height: 2 },
-  // },
   pickerContainer: {
     backgroundColor: '#fff',
     borderRadius: 10,
@@ -489,19 +758,43 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOpacity: 0.1,
     shadowOffset: { width: 0, height: 2 },
+    borderWidth: 1,
+    borderColor: '#AAB6C3',
+    color: '#102A68',
+    fontSize: 15,
   },
   picker: {
     height: 50,
     width: '100%',
+    color: '#102A68',
   },
   buttonRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     marginTop: 25,
   },
+  submitButton: {
+    backgroundColor: 'blue',
+    paddingVertical: 12,
+    paddingHorizontal: 25,
+    borderRadius: 8,
+    elevation: 3,
+  },
+  clearButton: {
+    backgroundColor: 'grey',
+    paddingVertical: 12,
+    paddingHorizontal: 25,
+    borderRadius: 8,
+    elevation: 3,
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
   scrollContainer: {
     flexGrow: 1,
-    // justifyContent: 'center',
     padding: 20,
     backgroundColor: '#F4F6FA',
   },
@@ -547,18 +840,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     backgroundColor: '#FFFFFF',
   },
-  tabButtonActive: {
-    backgroundColor: '#1F3C88',
-    borderColor: '#1F3C88',
-  },
-  tabText: {
-    color: '#1F3C88',
-    fontWeight: '500',
-  },
-  tabTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '600',
-  },
   input: {
     borderWidth: 1,
     borderColor: '#AAB6C3',
@@ -569,46 +850,9 @@ const styles = StyleSheet.create({
     color: '#102A68',
     fontSize: 15,
   },
-  otpButton: {
-    backgroundColor: '#1F3C88',
-    padding: 14,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginBottom: 14,
-  },
-  otpButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '600',
-  },
-  loginButton: {
-    backgroundColor: '#0A3C97',
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginVertical: 14,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  loginButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 16,
-  },
-  switchMode: {
-    alignItems: 'center',
-    marginVertical: 8,
-  },
-  switchModeText: {
-    color: '#1F3C88',
-    fontWeight: '500',
-  },
   abhaContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    // marginTop: ,
     marginBottom: 20,
   },
   abhaText: {
@@ -618,6 +862,17 @@ const styles = StyleSheet.create({
     color: '#0A3C97',
     fontWeight: '700',
     marginLeft: 5,
+  },
+  editableInput: {
+    backgroundColor: '#ffffff',
+  },
+  disabledInput: {
+    backgroundColor: '#f0f0f0',
+    color: '#888',
+  },
+  dateText: {
+    fontSize: 16,
+    color: '#102A68',
   },
 });
 

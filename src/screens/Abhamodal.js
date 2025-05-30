@@ -1,3 +1,6 @@
+/* eslint-disable react-native/no-inline-styles */
+/* eslint-disable curly */
+/* eslint-disable no-alert */
 import React, { useState } from 'react';
 import {
   Modal,
@@ -8,9 +11,9 @@ import {
   ActivityIndicator,
   StyleSheet,
 } from 'react-native';
-import { confirmAbhaOtp, initiateAbhaVerification, requestAbhaOtp, verifyAbhaOtp } from '../api/api'; // Update with actual APIs
+import { confirmAbhaOtp, initiateAbhaVerification, requestAbhaOtp } from '../api/api'; // Update with actual APIs
 
-const ABHAModal = ({ modelVisible, setmodelVisible ,setAbhaID, handleABDMSearch}) => {
+const ABHAModal = ({ modelVisible, setmodelVisible, setAbhaID, handleAutoABDMSearch }) => {
   const [inputId, setInputId] = useState('');
   const [selectedMode, setSelectedMode] = useState(null);
   const [step, setStep] = useState(1);
@@ -18,23 +21,60 @@ const ABHAModal = ({ modelVisible, setmodelVisible ,setAbhaID, handleABDMSearch}
   const [availableModes, setAvailableModes] = useState([]);
   const [otp, setOtp] = useState('');
   const [abhaData, setAbhaData] = useState(null);
-  const [transactionId , setTransactionId] = useState(null);
+  const [transactionId, setTransactionId] = useState(null);
 
   const verificationModes = [
     { id: 'abhaNumber', label: 'ABHA Number', placeholder: 'Enter ABHA Number' },
-    { id: 'abhaAddress', label: 'ABHA Address', placeholder: 'Enter ABHA Address'},
+    { id: 'abhaAddress', label: 'ABHA Address', placeholder: 'Enter ABHA Address' },
   ];
+
+  const formatAbhaNumber = (number) => {
+    // Return if already formatted
+    if (number.includes('-')) {
+      return number;
+    }
+    // Remove all non-digit characters
+    let formattedNumber = number.replace(/\D/g, '');
+    // Validate length
+    if (formattedNumber.length !== 14) {
+      alert('ABHA Number must be 14 digits');
+      return '';
+    }
+    // Format as XX-XXXX-XXXX-XXXX
+    return `${formattedNumber.slice(0, 2)}-${formattedNumber.slice(2, 6)}-${formattedNumber.slice(6, 10)}-${formattedNumber.slice(10)}`;
+  };
 
   const handleNext = async () => {
     if (!inputId) return alert('Please enter your ABHA details');
+    if (!selectedMode) return alert('Please select a verification mode');
+
+    let payload = {};
+
     setLoading(true);
     try {
-      const res = await initiateAbhaVerification(inputId); // API call
+      if (selectedMode === 'abhaNumber') {
+        payload = {
+          abhaNumber: formatAbhaNumber(inputId), // Format ABHA Number
+          initMode: '0', // Assuming '0' is the default mode
+        };
+      }
+      if (selectedMode === 'abhaAddress') {
+        payload = {
+          abhaAddress: inputId,
+          initMode: '0', // Assuming '0' is the default mode
+        };
+      }
+      console.log('Payload:', payload, selectedMode);
+      const res = await initiateAbhaVerification(payload); // API call
       console.log(res);
-
+      if (!res.status) {
+        // console.error('Verification failed:', res.errorMessage);
+        setLoading(false);
+        return alert('Verification failed: ' + res.errorMessage);
+      }
       setAbhaData(res.data);
       setAvailableModes(res?.data?.modes || []);
-      console.log('Available Modes:', res.data,res?.data?.modes);
+      console.log('Available Modes:', res.data, res?.data?.modes);
       setStep(2); // move to next step
     } catch (err) {
       alert('Verification failed');
@@ -72,24 +112,21 @@ const ABHAModal = ({ modelVisible, setmodelVisible ,setAbhaID, handleABDMSearch}
     if (!otp) return alert('Please enter OTP');
     setLoading(true);
     try {
-      const response = await confirmAbhaOtp(  abhaData.abhaTokenId,abhaData.ia_Token,abhaData. abhaAddress, abhaData.abhaNumber,transactionId, otp,selectedMode); 
+      const response = await confirmAbhaOtp(abhaData.abhaTokenId, abhaData.ia_Token, abhaData.abhaAddress, abhaData.abhaNumber, transactionId, otp, selectedMode);
       console.log('OTP Verified:', response);
       // alert('Verification successful!');
       if (response.status) {
-      
         setmodelVisible(false);
-      setStep(1); // Reset to first step
-      console.log('ABHA Address:', abhaData.abhaAddress);
-      setAbhaID(abhaData.abhaAddress);
-      console.log('ABHA Address:', abhaData.abhaAddress);
-      
-      handleABDMSearch();
-      console.log('ABDM Search Triggered');
-      
-      clearFields();
+        setStep(1); // Reset to first step
+        console.log('ABHA Address:', abhaData.abhaAddress);
+        setAbhaID(abhaData.abhaAddress);
+        console.log('ABHA Address:', abhaData.abhaAddress);
+        handleAutoABDMSearch(abhaData.abhaAddress);
+        console.log('ABDM Search Triggered');
+        clearFields();
         alert('Verification successful!');
       } else {
-        alert('Verification failed: ' + response.errorMessage);
+        alert('Verification failed: ' + response.respDescription);
       }
     } catch (err) {
       alert('Invalid OTP');
@@ -136,7 +173,8 @@ const ABHAModal = ({ modelVisible, setmodelVisible ,setAbhaID, handleABDMSearch}
             placeholder={selectedOption ? selectedOption.placeholder : 'Enter ABHA details'}
             value={inputId}
             onChangeText={setInputId}
-            keyboardType={selectedMode === 'abhaNumber' ? 'numeric' : 'default'}
+            keyboardType={selectedMode === 'abhaNumber' ? 'numeric' : 'email-address'}
+            autoCapitalize="none"
           />
 
           <TouchableOpacity style={styles.verifyButton} onPress={handleNext}>
@@ -150,7 +188,7 @@ const ABHAModal = ({ modelVisible, setmodelVisible ,setAbhaID, handleABDMSearch}
           <Text style={styles.subTitle}>Select Authentication Mode</Text>
           {availableModes.map((mode) => (
             <TouchableOpacity
-            value={mode}
+              value={mode}
               key={mode}
 
               style={styles.radioOption}
@@ -191,7 +229,7 @@ const ABHAModal = ({ modelVisible, setmodelVisible ,setAbhaID, handleABDMSearch}
         <View style={styles.modalContainer}>
           <Text style={styles.modalTitle}>ABHA Verification</Text>
           {renderStepContent()}
-          <TouchableOpacity onPress={() => {clearFields(); setmodelVisible(false)}} style={styles.cancelButton}>
+          <TouchableOpacity onPress={() => { clearFields(); setmodelVisible(false); }} style={styles.cancelButton}>
             <Text style={styles.cancelBttonText}>Close</Text>
           </TouchableOpacity>
         </View>
@@ -262,7 +300,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   verifyButton: {
-    backgroundColor: '#27ae60',
+    backgroundColor: 'blue',
     paddingVertical: 12,
     borderRadius: 10,
     alignItems: 'center',
@@ -296,6 +334,7 @@ const styles = StyleSheet.create({
   radioOption: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginBottom: 10,
   },
   radioOuter: {
     width: 18,
@@ -316,6 +355,5 @@ const styles = StyleSheet.create({
   radioLabel: {
     fontSize: 16,
     color: '#2c3e50',
-  }
-  
+  },
 });
