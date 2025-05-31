@@ -1,5 +1,5 @@
 import React from 'react';
-import {createDrawerNavigator} from '@react-navigation/drawer';
+import { createDrawerNavigator } from '@react-navigation/drawer';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 
 // Screens
@@ -13,6 +13,7 @@ import Patients from '../screens/Patients';
 
 // Custom Drawer Component
 import CustomDrawer from '../components/CustomDrawer';
+import CustomHeader from '../components/CustomHeader';
 
 const Drawer = createDrawerNavigator();
 
@@ -21,8 +22,10 @@ const AppDrawer = () => {
     <Drawer.Navigator
       drawerContent={props => <CustomDrawer {...props} />}
       screenOptions={{
+        header: () => <CustomHeader />, // Add this line
+        headerShown: true,
         // headerShown: false,
-        drawerItemStyle: {paddingLeft: 10}, // Adjust left padding for icon-label spacing
+        drawerItemStyle: { paddingLeft: 10 }, // Adjust left padding for icon-label spacing
         // drawerLabelStyle: { marginLeft: -10 },
         drawerActiveBackgroundColor: '#0A3C97',
         drawerActiveTintColor: '#fff',
@@ -35,9 +38,10 @@ const AppDrawer = () => {
       }}>
       <Drawer.Screen
         name="      Dashboard"
+        headerShown={false}
         component={Dashboard}
         options={{
-          drawerIcon: ({color}) => (
+          drawerIcon: ({ color }) => (
             <Ionicons name="grid-outline" size={22} color={color} />
           ),
         }}
@@ -46,7 +50,7 @@ const AppDrawer = () => {
         name="      Patients"
         component={Patients}
         options={{
-          drawerIcon: ({color}) => (
+          drawerIcon: ({ color }) => (
             <Ionicons name="people-outline" size={22} color={color} />
           ),
         }}

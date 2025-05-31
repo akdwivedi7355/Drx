@@ -11,7 +11,7 @@ import {
   ActivityIndicator,
   StyleSheet,
 } from 'react-native';
-import { confirmAbhaOtp, initiateAbhaVerification, requestAbhaOtp } from '../api/api'; // Update with actual APIs
+import { confirmAbhaOtp, initiateAbhaVerification, requestAbhaOtp } from '../api/api';
 
 const ABHAModal = ({ modelVisible, setmodelVisible, setAbhaID, handleAutoABDMSearch }) => {
   const [inputId, setInputId] = useState('');
