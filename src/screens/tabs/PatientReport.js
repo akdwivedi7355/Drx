@@ -1,12 +1,12 @@
-import React, {useState} from 'react';
-import {View, Text, StyleSheet, Button, Image} from 'react-native';
-import {launchCamera, launchImageLibrary} from 'react-native-image-picker';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, Button, Image } from 'react-native';
+import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 
-const PatientReport = () => {
+const PatientReport = ({ patientId }) => {
   const [photo, setPhoto] = useState(null);
 
   const handleCapturePhoto = () => {
-    launchCamera({mediaType: 'photo'}, response => {
+    launchCamera({ mediaType: 'photo' }, response => {
       if (
         !response.didCancel &&
         !response.errorCode &&
@@ -18,7 +18,7 @@ const PatientReport = () => {
   };
 
   const handleChooseFromLibrary = () => {
-    launchImageLibrary({mediaType: 'photo'}, response => {
+    launchImageLibrary({ mediaType: 'photo' }, response => {
       if (
         !response.didCancel &&
         !response.errorCode &&
@@ -31,7 +31,7 @@ const PatientReport = () => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.header}>Patient Report</Text>
+      <Text style={styles.header}>Patient Report{patientId}</Text>
       <Text>Diagnosis: Flu</Text>
       <Text>Prescribed Medicine: Paracetamol</Text>
       <Text>Doctor's Note: Rest for 3 days</Text>
@@ -43,7 +43,7 @@ const PatientReport = () => {
 
       {photo && (
         <Image
-          source={{uri: photo.uri}}
+          source={{ uri: photo.uri }}
           style={styles.image}
           resizeMode="contain"
         />

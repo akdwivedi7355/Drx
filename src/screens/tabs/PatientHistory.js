@@ -1,10 +1,10 @@
 import React from 'react';
-import {View, Text, StyleSheet} from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 
-const PatientHistory = () => {
+const PatientHistory = ({ patientId }) => {
   return (
     <View style={styles.container}>
-      <Text style={styles.header}>Patient History</Text>
+      <Text style={styles.header}>Patient History{patientId}</Text>
       <Text>Last Visit: 2024-12-15</Text>
       <Text>Past Illnesses: Asthma, Migraine</Text>
     </View>

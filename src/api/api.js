@@ -3,7 +3,7 @@ import axios from 'axios';
 import CryptoJS from 'crypto-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const BaseURL = 'https://uataarogyarx.dmaarogya.com/aarogyarx/aarogyaRx/apis/v1/';
+const BaseURL = 'http://192.168.7.79:8008/aarogyaRx_v5/aarogyaRx/apis/v1/';
 const AES_KEY = '1c012b9c8aa74363aa541b8080e886e0';
 const AES_IV = '080aae32c79b49bf';
 
@@ -284,38 +284,38 @@ export const getAllDoctors = async () => {
   return res;
 };
 
-// export const getpatientList = async (consultantCode, date, searchText = '', rowPerPage, rowStartFrom) => {
-//   const creds = await getFromAsyncStorage('auth_credentials');
+export const getpatientList = async (consultantCode, date, searchText = '', rowPerPage, rowStartFrom) => {
+  const creds = await getFromAsyncStorage('auth_credentials');
 
-//   if (!consultantCode) {
-//     const defaultConsultant = await getFromAsyncStorage('default_consultant');
-//     if (!defaultConsultant) {
-//       getdefaultconsultant();
-//     }
-//     consultantCode = defaultConsultant ? defaultConsultant.consultantCode : '';
-//   }
-//   if (!creds) { return { status: false, errorMessage: 'No stored credentials' }; }
+  if (!consultantCode) {
+    const defaultConsultant = await getFromAsyncStorage('default_consultant');
+    if (!defaultConsultant) {
+      getdefaultconsultant();
+    }
+    consultantCode = defaultConsultant ? defaultConsultant.consultantCode : '';
+  }
+  if (!creds) { return { status: false, errorMessage: 'No stored credentials' }; }
 
 
 
-//   if (!searchText) {
-//     searchText = '';
-//   }
-//   const payload = {
-//     consultantCode: consultantCode,
-//     date: date || new Date().toISOString().split('T')[0], // Current date in YYYY-MM-DD format
-//     searchText: searchText,
-//     rowPerPage: rowPerPage || '10',
-//     rowStartFrom: rowStartFrom || '0',
-//   };
-
-//   const headers = { u: creds.u };
-//   const res = await post('/DashboardPatients', payload, headers);
-//   if (res.status && res.data) {
-//     await storeToAsyncStorage('patient_list', res.data);
-//   }
-//   return res;
-// };
+  if (!searchText) {
+    searchText = '';
+  }
+  const payload = {
+    consultantCode: consultantCode,
+    date: date || new Date().toISOString().split('T')[0], // Current date in YYYY-MM-DD format
+    searchText: searchText,
+    rowPerPage: rowPerPage || '10',
+    rowStartFrom: rowStartFrom || '0',
+  };
+  console.log("payload", payload);
+  const headers = { u: creds.u };
+  const res = await post('/DashboardPatients', payload, headers);
+  if (res.status && res.data) {
+    await storeToAsyncStorage('patient_list', res.data);
+  }
+  return res;
+};
 
 export const getPatientDetails = async (patientId) => {
   const creds = await getFromAsyncStorage('auth_credentials');
@@ -339,7 +339,7 @@ export const getalldoctors = async () => {
         consultantInitial: 'Dr.',
       },
       {
-        consultantCode: '1000100000000000034',
+        consultantCode: '1000100000000000032',
         consultantName: 'Test Consultant 3',
         consultantInitial: 'Dr.',
       },
@@ -347,22 +347,22 @@ export const getalldoctors = async () => {
   };
 };
 
-export const getpatientList = async (consultantCode, date, search, limit, offset) => {
-  return {
-    status: true,
-    data: [
-      {
-        name: 'Ramesh Kumar Gupta',
-        abhaNumber: '1234567890',
-        abhaAddress: '1234567890@abha',
-        patientId: '1000100000000023',
-      },
-      {
-        name: 'Suresh Verma',
-        abhaNumber: '0987654321',
-        abhaAddress: '0987654321@abha',
-        patientId: '1000100000000024',
-      },
-    ],
-  };
-};
+// export const getpatientList = async (consultantCode, date, search, limit, offset) => {
+//   return {
+//     status: true,
+//     data: [
+//       {
+//         name: 'Ramesh Kumar Gupta',
+//         abhaNumber: '1234567890',
+//         abhaAddress: '1234567890@abha',
+//         patientId: '1000100000000023',
+//       },
+//       {
+//         name: 'Suresh Verma',
+//         abhaNumber: '0987654321',
+//         abhaAddress: '0987654321@abha',
+//         patientId: '1000100000000024',
+//       },
+//     ],
+//   };
+// };
