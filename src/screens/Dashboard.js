@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
-import { getpatientList, getalldoctors, getStoredUserDetails } from '../api/api';
+import { getpatientList, getalldoctors, getStoredUserDetails, getdefaultconsultant } from '../api/api';
 import { TextInput } from 'react-native-paper';
 import DateTimePicker from 'react-native-date-picker';
 
@@ -60,6 +60,7 @@ export default function Dashboard() {
       };
       setDefaultSite(res.facilityDisplayName);
       setSelectedDoctor(defaultres);
+      fetchPatients()(defaultres.consultantCode, selectedDate, searchText);
     }
     catch (err) {
       console.error('Error fetching default doctor:', err);
@@ -68,7 +69,7 @@ export default function Dashboard() {
 
   const fetchDoctors = async () => {
     try {
-      const res = await getalldoctors();
+      const res = await getdefaultconsultant();
       if (res.status && res.data) {
         console.log('Doctors fetched:', res.data);
         setDoctors(res.data);

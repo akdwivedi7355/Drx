@@ -22,7 +22,7 @@ import DateTimePicker from 'react-native-date-picker';
 import { Picker } from '@react-native-picker/picker';
 import Icon from 'react-native-vector-icons/Ionicons';
 import ABHAModal from './Abhamodal';
-import { verifyAbdmStatus } from '../api/api';
+import { AddPatients, getStoredDefaultConsultant, getUserDefaultDetails, verifyAbdmStatus } from '../api/api';
 
 const PatientForm = () => {
   const { control, handleSubmit, setValue, watch, reset } = useForm();
@@ -32,19 +32,8 @@ const PatientForm = () => {
   const [modelVisible, setmodelVisible] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const [editable, setEditable] = useState(true);
+  const [loading, setLoading] = useState(false);
 
-  const [selectedState, setSelectedState] = useState('');
-  const [selectedDistrict, setSelectedDistrict] = useState('');
-  const handleStateChange = (state) => {
-    setSelectedState(state);
-    setSelectedDistrict(''); // Reset district when state changes
-  };
-
-  const stateDistrictData = {
-    "UTTAR PRADESH": ["UNNAO", "KANPUR NAGAR", "Lucknow"],
-    "Maharashtra": ["Mumbai", "Pune", "Nagpur"],
-    // Add other states and their districts
-  };
 
 
   useEffect(() => {
@@ -153,7 +142,7 @@ const PatientForm = () => {
 
         console.log('Date of Birth:', dateOfBirth);
         console.log('Calculated Age:', calculatedAge);
-        console.log('User Data:', stateDistrictData);
+
         const nameParts = user.name?.trim().split(/\s+/) || [];
 
         if (nameParts.length === 2) {
@@ -175,18 +164,12 @@ const PatientForm = () => {
         setValue('address', user.address);
         setValue('state', user.state_name || '');
         setValue('district', user.district_name || '');
-        // setValue(); // Store the ABDM ID in the form
-        setSelectedDistrict(user.district_name || '');
-        setSelectedState(user.state_name || '');
+        setValue('abhaNumber', user.abhaNumber || '');
+        setValue('abhaAddress', user.abhaAddress || '');
+        setValue('iAarogyaLinkedId', user.iAarogyaLinkedId || '');
+        setValue('name', user.name || '');
         setEditable(false);
-
-        // setSelectedState(itemValue);
-        // setSelectedDistrict('');
-        // setValue('district', '');
-
         setAge(calculatedAge.toString());
-
-
       } else {
         setEditable(true); // Make fields editable again
         handleclearFields();
@@ -231,6 +214,8 @@ const PatientForm = () => {
         const user = response.data;
         const { yearOfBirth, monthOfBirth, dayOfBirth } = user;
 
+        console.log('User Data:', user);
+
         if (!yearOfBirth || !monthOfBirth || !dayOfBirth) {
           console.warn('Incomplete DOB data:', { yearOfBirth, monthOfBirth, dayOfBirth });
           return;
@@ -241,7 +226,6 @@ const PatientForm = () => {
 
         console.log('Date of Birth:', dateOfBirth);
         console.log('Calculated Age:', calculatedAge);
-        console.log('User Data:', stateDistrictData);
         const nameParts = user.name?.trim().split(/\s+/) || [];
 
         if (nameParts.length === 2) {
@@ -262,10 +246,12 @@ const PatientForm = () => {
         setValue('address', user.address);
         setValue('state', user.state_name || '');
         setValue('district', user.district_name || '');
+        setValue('abhaNumber', user.abhaNumber || '');
+        setValue('abhaAddress', user.abhaAddress || '');
+        setValue('iAarogyaLinkedId', user.iAarogyaLinkedId || '');
+        setValue('name', user.name || '');
+        // setValue('guardianName', user.guardianName || ''); // Add guardian name if available
         // setValue(); // Store the ABDM ID in the form
-        setSelectedDistrict(user.district_name || '');
-        setSelectedState(user.state_name || '');
-        setEditable(false);
 
         // setSelectedState(itemValue);
         // setSelectedDistrict('');
@@ -290,8 +276,6 @@ const PatientForm = () => {
     reset();
     setAbdmID('');
     setAge('');
-    setSelectedState('');
-    setSelectedDistrict('');
     setmodelVisible(false);
   };
 
@@ -299,12 +283,55 @@ const PatientForm = () => {
     setmodelVisible(true);
   };
 
-  const onSubmit = (data) => {
+  const onSubmit = async (data) => {
+    if (!data.firstName || !data.lastName || !data.dob || !data.mobile) {
+      Alert.alert('Error', 'Please fill in all required fields');
+      return;
+    }
 
-    console.log('Submitted Data:', data);
-    Alert.alert('Form Submitted', JSON.stringify(data, null, 2));
-    console.log('Form Submitted', JSON.stringify(data, null, 2));
-    handleclearFields();
+    setLoading(true); // 🔵 START loading
+
+    try {
+      const consultant = await getUserDefaultDetails();
+
+      if (!data.name) {
+        data.name = `${data.firstName} ${data.middleName || ''} ${data.lastName}`.trim();
+      } else {
+        data.name = data.name.trim();
+      }
+
+      const patientdata = {
+        consultantCode: consultant?.data?.userLinkedConsultantCode,
+        patientPrefix: data.patientPrefix,
+        patientFirstName: data.firstName,
+        patientMiddleName: data.middleName,
+        patientLastName: data.lastName,
+        patientName: data.name,
+        patientGender: data.gender,
+        patientDob: data.dob,
+        patientMobile: data.mobile,
+        patientEmail: data.email,
+        address1: data.address,
+        abhaNumber: data.abhaNumber,
+        abhaAddress: data.abhaAddress,
+        abhaMobile: data.mobile,
+        iAarogyaLinkedId: data.iAarogyaLinkedId || null,
+      };
+
+      const apires = await AddPatients(patientdata);
+
+      if (apires.status) {
+        Alert.alert('Success', 'Patient registered successfully');
+        handleclearFields();
+      } else {
+        Alert.alert('Error', 'Failed to register patient: ' + apires.errorMessage);
+      }
+    } catch (err) {
+      Alert.alert('Error', 'Something went wrong.');
+      console.error('Submission error:', err);
+    } finally {
+      setLoading(false); // 🔴 END loading
+    }
   };
 
   return (
@@ -347,7 +374,9 @@ const PatientForm = () => {
         {/* <Text style={styles.title}>Patient Registration Form</Text> */}
 
         {/* Name Row */}
+        <Text style={styles.label}>Patient Name</Text>
         <View style={styles.row}>
+
           <Controller
             control={control}
             name="firstName"
@@ -419,14 +448,15 @@ const PatientForm = () => {
                 placeholderTextColor="#AAB6C3"
                 value={value}
                 onChangeText={onChange}
-                editable={editable} // <-- Make it non-editable
-                selectTextOnFocus={false} // Optional: prevent selecting text
+                editable={editable}
+                selectTextOnFocus={false}
               />
             )}
           />
         </View>
 
         {/* DOB and Age Row */}
+        <Text style={styles.label}>Date Of Birth</Text>
         <View style={styles.row}>
           <Controller
             control={control}
@@ -459,6 +489,7 @@ const PatientForm = () => {
           />
         </View>
 
+
         <DateTimePicker
           modal
           open={showDatePicker}
@@ -476,114 +507,60 @@ const PatientForm = () => {
         />
 
         {/* Gender Dropdown */}
-        <Controller
-          control={control}
-          name="gender"
-          render={({ field: { onChange, value } }) => (
-            <View
-              style={[
-                styles.pickerContainer,
-                editable ? styles.editableInput : styles.disabledInput,
-              ]}>
-              <Picker
-                selectedValue={value}
-                onValueChange={editable ? onChange : () => { }}
-                enabled={editable}
-                style={[styles.picker, !editable && { color: '#888' }]}>
-                <Picker.Item label="Select Gender" value="" />
-                <Picker.Item label="Male" value="Male" />
-                <Picker.Item label="Female" value="Female" />
-                <Picker.Item label="Other" value="Other" />
-              </Picker>
-            </View>
-          )}
-        />
+        <View style={styles.inputRow}>
+          <View style={styles.dropdownWrapper}>
+            <Text style={styles.label}>Gender</Text>
+            <Controller
+              control={control}
+              name="gender"
+              render={({ field: { onChange, value } }) => (
+                <View style={styles.pickerBox}>
+                  <Picker
+                    selectedValue={value}
+                    onValueChange={editable ? onChange : () => { }}
+                    enabled={editable}
+                    style={[
+                      styles.picker,
+                      editable ? styles.editableInput : styles.disabledInput,
+                    ]}>
+                    <Picker.Item label="Select Gender" value="" />
+                    <Picker.Item label="Male" value="Male" />
+                    <Picker.Item label="Female" value="Female" />
+                    <Picker.Item label="Other" value="Other" />
+                  </Picker>
+                </View>
+              )}
+            />
+          </View>
 
-        {/* <View style={styles.pickerContainer}>
-                          <Picker
-                            selectedValue={selectedState}
-                            onValueChange={handleStateChange}
-                            style={styles.picker}
-                          >
-                            <Picker.Item label="Select State" value="" />
-                            {Object.keys(stateDistrictData).map((state) => (
-                              <Picker.Item key={state} label={state} value={state} />
-                            ))}
-                          </Picker>
-                          </View> */}
-
-        {/* District Picker */}
-        {/* State Picker */}
-        <Controller
-          control={control}
-          name="state"
-          render={({ field: { onChange, value } }) => (
-            <View
-              style={[
-                styles.pickerContainer,
-                editable ? styles.editableInput : styles.disabledInput,
-              ]}>
-              <Picker
-                selectedValue={value}
-                onValueChange={
-                  editable
-                    ? itemValue => {
-                      onChange(itemValue);
-                      setSelectedState(itemValue);
-                      setSelectedDistrict('');
-                      setValue('district', '');
-                    }
-                    : () => { }
-                }
-                style={[styles.picker, !editable && { color: '#888' }]}
-                enabled={editable}>
-                <Picker.Item label="Select State" value="" />
-                {Object.keys(stateDistrictData).map(state => (
-                  <Picker.Item key={state} label={state} value={state} />
-                ))}
-              </Picker>
-            </View>
-          )}
-        />
-
-        {/* District Picker */}
-        {watch('state') !== '' && (
-          <Controller
-            control={control}
-            name="district"
-            render={({ field: { onChange, value } }) => (
-              <View
-                style={[
-                  styles.pickerContainer,
-                  editable ? styles.editableInput : styles.disabledInput,
-                ]}>
-                <Picker
-                  selectedValue={value}
-                  onValueChange={
-                    editable
-                      ? itemValue => {
-                        onChange(itemValue);
-                        setSelectedDistrict(itemValue);
-                      }
-                      : () => { }
-                  }
-                  style={[styles.picker, !editable && { color: '#888' }]}
-                  enabled={editable}>
-                  <Picker.Item label="Select District" value="" />
-                  {(stateDistrictData[watch('state')] || []).map(district => (
-                    <Picker.Item
-                      key={district}
-                      label={district}
-                      value={district}
-                    />
-                  ))}
-                </Picker>
-              </View>
-            )}
-          />
-        )}
-
-        {/* Mobile */}
+          <View style={styles.dropdownWrapper}>
+            <Text style={styles.label}>Blood Group</Text>
+            <Controller
+              control={control}
+              name="bloodgroup"
+              render={({ field: { onChange, value } }) => (
+                <View style={styles.pickerBox}>
+                  <Picker
+                    selectedValue={value}
+                    onValueChange={editable ? onChange : () => { }}
+                    enabled={editable}
+                    style={styles.picker}>
+                    <Picker.Item label="Select Blood Group" value="" />
+                    <Picker.Item label="A+" value="A+" />
+                    <Picker.Item label="A-" value="A-" />
+                    <Picker.Item label="B+" value="B+" />
+                    <Picker.Item label="B-" value="B-" />
+                    <Picker.Item label="O+" value="O+" />
+                    <Picker.Item label="O-" value="O-" />
+                    <Picker.Item label="AB+" value="AB+" />
+                    <Picker.Item label="AB-" value="AB-" />
+                  </Picker>
+                </View>
+              )}
+            />
+          </View>
+        </View>
+        <Text style={styles.label}>Mobile Number</Text>
         <Controller
           control={control}
           name="mobile"
@@ -619,9 +596,7 @@ const PatientForm = () => {
             </>
           )}
         />
-
-        {/* Email */}
-        {/* Email */}
+        {/* Email Input */}
         <Controller
           control={control}
           name="email"
@@ -645,7 +620,9 @@ const PatientForm = () => {
           )}
         />
 
+
         {/* Address */}
+        <Text style={styles.label}>Address</Text>
         <Controller
           control={control}
           name="address"
@@ -666,18 +643,18 @@ const PatientForm = () => {
           )}
         />
 
-        {/* Buttons */}
-        {/* <View style={styles.buttonRow}>
-          <Button title="Submit" onPress={handleSubmit(onSubmit)} />
-          <Button title="Clear" onPress={() => { reset(); setAbdmID(''); setAge(''); }} color="red" />
-        </View> */}
-
         <View style={styles.buttonRow}>
           <TouchableOpacity
-            style={styles.submitButton}
-            onPress={handleSubmit(onSubmit)}>
-            <Text style={styles.buttonText}>Submit</Text>
+            style={[styles.submitButton, loading && { backgroundColor: 'gray' }]}
+            onPress={handleSubmit(onSubmit)}
+            disabled={loading}
+          >
+            <Text style={styles.buttonText}>
+              {loading ? 'Submitting...' : 'Submit'}
+            </Text>
           </TouchableOpacity>
+
+
 
           <TouchableOpacity
             style={styles.clearButton}
@@ -685,196 +662,237 @@ const PatientForm = () => {
               reset();
               setAbdmID('');
               setAge('');
+              setEditable(true);
+              handleclearFields();
             }}>
             <Text style={styles.buttonText}>Clear</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
-    </KeyboardAvoidingView>
+    </KeyboardAvoidingView >
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f7fa',
-    paddingBottom: 50,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    marginBottom: 25,
-    textAlign: 'center',
-    color: '#2c3e50',
-  },
-  abdmContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 20,
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowOffset: { width: 0, height: 2 },
-  },
-  abdmInput: {
-    flex: 1,
-    padding: 10,
-    fontSize: 16,
-    color: '#333',
-  },
-  fixedText: {
-    marginHorizontal: 6,
-    color: '#7f8c8d',
-    fontSize: 16,
-  },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 15,
-  },
-  inputSmall: {
-    flex: 1,
-    backgroundColor: '#fff',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    borderWidth: 1,
-    borderColor: '#AAB6C3',
-    borderRadius: 12,
-    padding: 14,
-    color: '#102A68',
-    fontSize: 15,
-  },
-  pickerContainer: {
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    marginBottom: 15,
-    elevation: 2,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowOffset: { width: 0, height: 2 },
-    borderWidth: 1,
-    borderColor: '#AAB6C3',
-    color: '#102A68',
-    fontSize: 15,
-  },
-  picker: {
-    height: 50,
-    width: '100%',
-    color: '#102A68',
-  },
-  buttonRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginTop: 25,
-  },
-  submitButton: {
-    backgroundColor: 'blue',
-    paddingVertical: 12,
-    paddingHorizontal: 25,
-    borderRadius: 8,
-    elevation: 3,
-  },
-  clearButton: {
-    backgroundColor: 'grey',
-    paddingVertical: 12,
-    paddingHorizontal: 25,
-    borderRadius: 8,
-    elevation: 3,
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  scrollContainer: {
-    flexGrow: 1,
-    padding: 20,
-    backgroundColor: '#F4F6FA',
-  },
-  containerBox: {
-    backgroundColor: '#FFFFFF',
-    padding: 25,
-    borderRadius: 20,
-    width: '100%',
-    maxWidth: 500,
-    alignSelf: 'center',
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 2 },
-  },
-  header: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#102A68',
-    textAlign: 'center',
-    marginBottom: 5,
-  },
-  subHeader: {
-    fontSize: 15,
-    color: '#6078A0',
-    textAlign: 'center',
-    marginBottom: 25,
-  },
-  tabContainer: {
-    flexDirection: 'row',
-    marginBottom: 16,
-    justifyContent: 'center',
-    flexWrap: 'wrap',
-  },
-  tabButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 10,
-    borderWidth: 1,
-    borderColor: '#1F3C88',
-    marginHorizontal: 5,
-    marginVertical: 4,
-    borderRadius: 10,
-    backgroundColor: '#FFFFFF',
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#AAB6C3',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 14,
-    backgroundColor: '#FFFFFF',
-    color: '#102A68',
-    fontSize: 15,
-  },
-  abhaContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginBottom: 20,
-  },
-  abhaText: {
-    color: '#6078A0',
-  },
-  verifyAbha: {
-    color: '#0A3C97',
-    fontWeight: '700',
-    marginLeft: 5,
-  },
-  editableInput: {
-    backgroundColor: '#ffffff',
-  },
-  disabledInput: {
-    backgroundColor: '#f0f0f0',
-    color: '#888',
-  },
-  dateText: {
-    fontSize: 16,
-    color: '#102A68',
-  },
-});
+// const styles = StyleSheet.create({
+//   container: {
+//     flex: 1,
+//     backgroundColor: '#f5f7fa',
+//     paddingBottom: 50,
+//   },
+//   title: {
+//     fontSize: 24,
+//     fontWeight: '700',
+//     marginBottom: 25,
+//     textAlign: 'center',
+//     color: '#2c3e50',
+//   },
+//   abdmContainer: {
+//     flexDirection: 'row',
+//     alignItems: 'center',
+//     marginBottom: 20,
+//     backgroundColor: '#fff',
+//     borderRadius: 10,
+//     paddingHorizontal: 10,
+//     elevation: 2,
+//     shadowColor: '#000',
+//     shadowOpacity: 0.1,
+//     shadowOffset: { width: 0, height: 2 },
+//   },
+//   abdmInput: {
+//     flex: 1,
+//     padding: 10,
+//     fontSize: 16,
+//     color: '#333',
+//   },
+//   fixedText: {
+//     marginHorizontal: 6,
+//     color: '#7f8c8d',
+//     fontSize: 16,
+//   },
+//   row: {
+//     flexDirection: 'row',
+//     justifyContent: 'space-between',
+//     alignItems: 'center',
+//     marginBottom: 15,
+//   },
+//   rowgender: {
+//     flexDirection: 'row',
+//     justifyContent: 'space-between',
+//     alignItems: 'center',
+//     // marginBottom: 15,
+//   },
+//   inputSmall: {
+//     flex: 1,
+//     backgroundColor: '#fff',
+//     elevation: 2,
+//     shadowColor: '#000',
+//     shadowOpacity: 0.1,
+//     borderWidth: 1,
+//     borderColor: '#AAB6C3',
+//     borderRadius: 12,
+//     padding: 14,
+//     color: '#102A68',
+//     fontSize: 15,
+//   },
+//   pickerContainer: {
+//     backgroundColor: '#fff',
+//     borderRadius: 10,
+//     marginBottom: 15,
+//     elevation: 2,
+//     overflow: 'hidden',
+//     shadowColor: '#000',
+//     shadowOpacity: 0.1,
+//     shadowOffset: { width: 0, height: 2 },
+//     borderWidth: 1,
+//     borderColor: '#AAB6C3',
+//     color: '#102A68',
+//     fontSize: 15,
+//   },
+//   picker: {
+//     height: 50,
+//     width: '100%',
+//     color: '#102A68',
+//   },
+//   buttonRow: {
+//     flexDirection: 'row',
+//     justifyContent: 'space-around',
+//     marginTop: 25,
+//   },
+//   submitButton: {
+//     backgroundColor: 'blue',
+//     paddingVertical: 12,
+//     paddingHorizontal: 25,
+//     borderRadius: 8,
+//     elevation: 3,
+//   },
+//   clearButton: {
+//     backgroundColor: 'grey',
+//     paddingVertical: 12,
+//     paddingHorizontal: 25,
+//     borderRadius: 8,
+//     elevation: 3,
+//   },
+//   buttonText: {
+//     color: '#fff',
+//     fontSize: 16,
+//     fontWeight: '600',
+//     textAlign: 'center',
+//   },
+//   scrollContainer: {
+//     flexGrow: 1,
+//     padding: 20,
+//     backgroundColor: '#F4F6FA',
+//   },
+//   containerBox: {
+//     backgroundColor: '#FFFFFF',
+//     padding: 25,
+//     borderRadius: 20,
+//     width: '100%',
+//     maxWidth: 500,
+//     alignSelf: 'center',
+//     elevation: 5,
+//     shadowColor: '#000',
+//     shadowOpacity: 0.1,
+//     shadowRadius: 10,
+//     shadowOffset: { width: 0, height: 2 },
+//   },
+//   header: {
+//     fontSize: 28,
+//     fontWeight: '700',
+//     color: '#102A68',
+//     textAlign: 'center',
+//     marginBottom: 5,
+//   },
+//   subHeader: {
+//     fontSize: 15,
+//     color: '#6078A0',
+//     textAlign: 'center',
+//     marginBottom: 25,
+//   },
+//   tabContainer: {
+//     flexDirection: 'row',
+//     marginBottom: 16,
+//     justifyContent: 'center',
+//     flexWrap: 'wrap',
+//   },
+//   tabButton: {
+//     paddingVertical: 10,
+//     paddingHorizontal: 10,
+//     borderWidth: 1,
+//     borderColor: '#1F3C88',
+//     marginHorizontal: 5,
+//     marginVertical: 4,
+//     borderRadius: 10,
+//     backgroundColor: '#FFFFFF',
+//   },
+//   input: {
+//     borderWidth: 1,
+//     borderColor: '#AAB6C3',
+//     borderRadius: 12,
+//     padding: 14,
+//     marginBottom: 14,
+//     backgroundColor: '#FFFFFF',
+//     color: '#102A68',
+//     fontSize: 15,
+//   },
+//   abhaContainer: {
+//     flexDirection: 'row',
+//     justifyContent: 'center',
+//     marginBottom: 20,
+//   },
+//   abhaText: {
+//     color: '#6078A0',
+//   },
+//   verifyAbha: {
+//     color: '#0A3C97',
+//     fontWeight: '700',
+//     marginLeft: 5,
+//   },
+//   editableInput: {
+//     backgroundColor: '#ffffff',
+//   },
+//   disabledInput: {
+//     backgroundColor: '#f0f0f0',
+//     color: '#888',
+//   },
+//   dateText: {
+//     fontSize: 16,
+//     color: '#102A68',
+//   },
+
+//   inputRow: {
+//     flexDirection: 'row',
+//     justifyContent: 'space-between',
+//     gap: 12,
+//     marginBottom: 20,
+//   },
+
+//   dropdownWrapper: {
+//     flex: 1,
+//   },
+
+//   label: {
+//     fontSize: 14,
+//     color: '#2E3A59',
+//     marginBottom: 6,
+//     fontWeight: '500',
+//   },
+
+//   pickerBox: {
+//     backgroundColor: '#FFFFFF',
+//     borderWidth: 1,
+//     borderColor: '#CED4DA',
+//     borderRadius: 10,
+//     overflow: 'hidden',
+//     justifyContent: 'center',
+//   },
+
+//   // picker: {
+//   //   height: 45,
+//   //   width: '100%',
+//   //   color: '#102A68',
+//   // },
+// });
 
 
 export default PatientForm;

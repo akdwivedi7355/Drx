@@ -4,6 +4,8 @@ import CryptoJS from 'crypto-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const BaseURL = 'http://192.168.7.79:8008/aarogyaRx_v5/aarogyaRx/apis/v1/';
+const BaseURLLive = 'https://uataarogyarx.dmaarogya.com/aarogyarx/aarogyaRx/apis/v1/';
+
 const AES_KEY = '1c012b9c8aa74363aa541b8080e886e0';
 const AES_IV = '080aae32c79b49bf';
 
@@ -40,7 +42,21 @@ const decrypt = (cipherText) => {
 
 const post = async (url, data, headers = {}) => {
   try {
-    const response = await axios.post(`${BaseURL}${url}`, data, { headers });
+    const response = await axios.post(`${BaseURLLive}${url}`, data, { headers });
+    if (response.data.respCode === 'ERR0001') {
+      // Session is invalid, attempt re-authentication
+      console.warn('Session invalid. Attempting automatic re-authentication...');
+      const autoLoginRes = await userAuthenticationAuto();
+      if (!autoLoginRes.status) {
+        return { status: false, errorMessage: 'Auto login failed' };
+      }
+      const newCreds = await getFromAsyncStorage('auth_credentials');
+      if (!newCreds) {
+        return { status: false, errorMessage: 'Failed to retrieve new session ID after login' };
+      }
+      headers.u = newCreds.u;
+      return await post(url, data, headers);
+    }
     console.log("Response:", response);
     return response.data;
   } catch (error) {
@@ -326,43 +342,73 @@ export const getPatientDetails = async (patientId) => {
   return await post('/PatientDetails', payload, headers);
 };
 
-
-
-
-export const getalldoctors = async () => {
-  return {
-    status: true,
-    data: [
-      {
-        consultantCode: '1000100000000000033',
-        consultantName: 'Test Consultant 2',
-        consultantInitial: 'Dr.',
-      },
-      {
-        consultantCode: '1000100000000000032',
-        consultantName: 'Test Consultant 3',
-        consultantInitial: 'Dr.',
-      },
-    ],
-  };
-};
+// export const getalldoctors = async () => {
+//   return {
+//     status: true,
+//     data: [
+//       {
+//         consultantCode: '1000100000000000033',
+//         consultantName: 'Test Consultant 2',
+//         consultantInitial: 'Dr.',
+//       },
+//       {
+//         consultantCode: '1000100000000000032',
+//         consultantName: 'Test Consultant 3',
+//         consultantInitial: 'Dr.',
+//       },
+//     ],
+//   };
+// };
 
 // export const getpatientList = async (consultantCode, date, search, limit, offset) => {
 //   return {
 //     status: true,
 //     data: [
 //       {
-//         name: 'Ramesh Kumar Gupta',
+//         patientName: 'Ramesh Kumar Gupta',
 //         abhaNumber: '1234567890',
 //         abhaAddress: '1234567890@abha',
-//         patientId: '1000100000000023',
+//         regId: '1000100000000023',
 //       },
 //       {
-//         name: 'Suresh Verma',
+//         patientName: 'Suresh Verma',
 //         abhaNumber: '0987654321',
 //         abhaAddress: '0987654321@abha',
-//         patientId: '1000100000000024',
+//         regId: '1000100000000024',
 //       },
 //     ],
 //   };
 // };
+
+export const AddPatients = async (patientData) => {
+  const creds = await getFromAsyncStorage('auth_credentials');
+  if (!creds) { return { status: false, errorMessage: 'No stored credentials' }; }
+
+  const payload = {
+    consultantCode: patientData.consultantCode,
+    patientPrefix: patientData.patientPrefix,
+    patientFirstName: patientData.patientFirstName,
+    patientMiddleName: patientData.patientMiddleName,
+    patientLastName: patientData.patientLastName,
+    patientName: patientData.patientName,
+    genderCode: patientData.patientGender,
+    patientDob: patientData.patientDob,
+    guardianPrefix: patientData.guardianPrefix,
+    guardianName: patientData.guardianName,
+    guardianRelationship: patientData.guardianRelationship,
+    patientMobile: patientData.patientMobile,
+    patientEmail: patientData.patientEmail,
+    address1: patientData.address1,
+    address2: patientData.address2 || null,
+    cityCode: patientData.cityCode,
+    abhaNumber: patientData.abhaNumber,
+    abhaAddress: patientData.abhaAddress,
+    abhaMobile: patientData.abhaMobile,
+    iAarogyaLinkedId: patientData.iAarogyaLinkedId || null,
+  };
+
+  console.log("payload", payload);
+  const headers = { u: creds.u };
+  return await post('/AddPatient', payload, headers);
+};
+
