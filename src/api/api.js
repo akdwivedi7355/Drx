@@ -3,9 +3,12 @@ import axios from 'axios';
 import CryptoJS from 'crypto-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const BaseURL = 'https://uataarogyarx.dmaarogya.com/aarogyarx/aarogyaRx/apis/v1/';
+const BaseURL = 'http://192.168.7.79:8008/aarogyaRx_v5/aarogyaRx/apis/v1/';
+const BaseURLLive = 'https://uataarogyarx.dmaarogya.com/aarogyarx/aarogyaRx/apis/v1/';
+
 const AES_KEY = '1c012b9c8aa74363aa541b8080e886e0';
 const AES_IV = '080aae32c79b49bf';
+
 
 const encrypt = (plainText) => {
   var key = CryptoJS.enc.Utf8.parse(AES_KEY);
@@ -36,9 +39,24 @@ const decrypt = (cipherText) => {
 
   return decrypted.toString(CryptoJS.enc.Utf8);
 };
+
 const post = async (url, data, headers = {}) => {
   try {
-    const response = await axios.post(`${BaseURL}${url}`, data, { headers });
+    const response = await axios.post(`${BaseURLLive}${url}`, data, { headers });
+    if (response.data.respCode === 'ERR0001') {
+      // Session is invalid, attempt re-authentication
+      console.warn('Session invalid. Attempting automatic re-authentication...');
+      const autoLoginRes = await userAuthenticationAuto();
+      if (!autoLoginRes.status) {
+        return { status: false, errorMessage: 'Auto login failed' };
+      }
+      const newCreds = await getFromAsyncStorage('auth_credentials');
+      if (!newCreds) {
+        return { status: false, errorMessage: 'Failed to retrieve new session ID after login' };
+      }
+      headers.u = newCreds.u;
+      return await post(url, data, headers);
+    }
     console.log("Response:", response);
     return response.data;
   } catch (error) {
@@ -46,7 +64,6 @@ const post = async (url, data, headers = {}) => {
     return { status: false, errorMessage: error.message };
   }
 };
-
 
 const storeToAsyncStorage = async (key, value) => {
   try {
@@ -65,7 +82,6 @@ const getFromAsyncStorage = async key => {
     return null;
   }
 };
-
 
 export const userAuthentication = async (authType, loginId, password) => {
   const payload = {
@@ -86,7 +102,6 @@ export const userAuthentication = async (authType, loginId, password) => {
   return res;
 };
 
-
 export const requestOtp = async (authType, loginId) => {
   const payload = {
     authType: authType,
@@ -97,7 +112,6 @@ export const requestOtp = async (authType, loginId) => {
   console.log("decript", decript);
   return await post('/RequestOTP', payload);
 };
-
 
 export const verifyOtp = async (authType, loginId, otpValue) => {
   const payload = {
@@ -115,7 +129,6 @@ export const verifyOtp = async (authType, loginId, otpValue) => {
   }
   return res;
 };
-
 
 export const userAuthenticationAuto = async () => {
   const creds = await getFromAsyncStorage('auth_credentials');
@@ -135,8 +148,6 @@ export const userAuthenticationAuto = async () => {
   }
   return res;
 };
-
-
 
 export const getUserDefaultDetails = async () => {
   const creds = await getFromAsyncStorage('auth_credentials');
@@ -167,18 +178,13 @@ export const getUserDefaultDetails = async () => {
   return res;
 };
 
-
 export const getStoredCredentials = async () => {
   return await getFromAsyncStorage('auth_credentials');
 };
 
-
 export const getStoredUserDetails = async () => {
   return await getFromAsyncStorage('user_details');
 };
-
-
-/* ABHA Verification Functions */
 
 export const initiateAbhaVerification = async (payload) => {
   // const payload = {
@@ -241,7 +247,6 @@ export const confirmAbhaOtp = async (
   return await post('/VerbalConfirmOTP', payload, headers);
 };
 
-
 export const verifyAbdmStatus = async (type, value) => {
   const creds = await getFromAsyncStorage('auth_credentials');
   if (!creds) { return { status: false, errorMessage: 'No stored credentials' }; }
@@ -255,7 +260,6 @@ export const verifyAbdmStatus = async (type, value) => {
   const headers = { u: creds.u };
   return await post('AbhaVerifyStatus', payload, headers);
 };
-
 
 export const forgetPassword = async (otp, authType, loginId, newPassword) => {
   const creds = await getFromAsyncStorage('auth_credentials');
@@ -272,20 +276,29 @@ export const forgetPassword = async (otp, authType, loginId, newPassword) => {
   return await post('/ForgotPassword', payload, headers);
 };
 
-
 export const getdefaultconsultant = async () => {
   const creds = await getFromAsyncStorage('auth_credentials');
   if (!creds) { return { status: false, errorMessage: 'No stored credentials' }; }
 
 
   const headers = { u: creds.u };
-  const res = await post('/DefaultConsultant', {}, headers);
+  const res = await post('/DefaultConsultants', {}, headers);
   if (res.status && res.data) {
     await storeToAsyncStorage('default_consultant', res.data);
   }
   return res;
 };
 
+export const getStoredDefaultConsultant = async () => { return await getFromAsyncStorage('default_consultant'); };
+
+export const getAllDoctors = async () => {
+  const creds = await getFromAsyncStorage('auth_credentials');
+  if (!creds) { return { status: false, errorMessage: 'No stored credentials' }; }
+
+  const headers = { u: creds.u };
+  const res = await post('/AllDoctors', {}, headers);
+  return res;
+};
 
 export const getpatientList = async (consultantCode, date, searchText = '', rowPerPage, rowStartFrom) => {
   const creds = await getFromAsyncStorage('auth_credentials');
@@ -311,7 +324,7 @@ export const getpatientList = async (consultantCode, date, searchText = '', rowP
     rowPerPage: rowPerPage || '10',
     rowStartFrom: rowStartFrom || '0',
   };
-
+  console.log("payload", payload);
   const headers = { u: creds.u };
   const res = await post('/DashboardPatients', payload, headers);
   if (res.status && res.data) {
@@ -319,3 +332,83 @@ export const getpatientList = async (consultantCode, date, searchText = '', rowP
   }
   return res;
 };
+
+export const getPatientDetails = async (patientId) => {
+  const creds = await getFromAsyncStorage('auth_credentials');
+  if (!creds) { return { status: false, errorMessage: 'No stored credentials' }; }
+
+  const payload = { patientId };
+  const headers = { u: creds.u };
+  return await post('/PatientDetails', payload, headers);
+};
+
+// export const getalldoctors = async () => {
+//   return {
+//     status: true,
+//     data: [
+//       {
+//         consultantCode: '1000100000000000033',
+//         consultantName: 'Test Consultant 2',
+//         consultantInitial: 'Dr.',
+//       },
+//       {
+//         consultantCode: '1000100000000000032',
+//         consultantName: 'Test Consultant 3',
+//         consultantInitial: 'Dr.',
+//       },
+//     ],
+//   };
+// };
+
+// export const getpatientList = async (consultantCode, date, search, limit, offset) => {
+//   return {
+//     status: true,
+//     data: [
+//       {
+//         patientName: 'Ramesh Kumar Gupta',
+//         abhaNumber: '1234567890',
+//         abhaAddress: '1234567890@abha',
+//         regId: '1000100000000023',
+//       },
+//       {
+//         patientName: 'Suresh Verma',
+//         abhaNumber: '0987654321',
+//         abhaAddress: '0987654321@abha',
+//         regId: '1000100000000024',
+//       },
+//     ],
+//   };
+// };
+
+export const AddPatients = async (patientData) => {
+  const creds = await getFromAsyncStorage('auth_credentials');
+  if (!creds) { return { status: false, errorMessage: 'No stored credentials' }; }
+
+  const payload = {
+    consultantCode: patientData.consultantCode,
+    patientPrefix: patientData.patientPrefix,
+    patientFirstName: patientData.patientFirstName,
+    patientMiddleName: patientData.patientMiddleName,
+    patientLastName: patientData.patientLastName,
+    patientName: patientData.patientName,
+    genderCode: patientData.patientGender,
+    patientDob: patientData.patientDob,
+    guardianPrefix: patientData.guardianPrefix,
+    guardianName: patientData.guardianName,
+    guardianRelationship: patientData.guardianRelationship,
+    patientMobile: patientData.patientMobile,
+    patientEmail: patientData.patientEmail,
+    address1: patientData.address1,
+    address2: patientData.address2 || null,
+    cityCode: patientData.cityCode,
+    abhaNumber: patientData.abhaNumber,
+    abhaAddress: patientData.abhaAddress,
+    abhaMobile: patientData.abhaMobile,
+    iAarogyaLinkedId: patientData.iAarogyaLinkedId || null,
+  };
+
+  console.log("payload", payload);
+  const headers = { u: creds.u };
+  return await post('/AddPatient', payload, headers);
+};
+

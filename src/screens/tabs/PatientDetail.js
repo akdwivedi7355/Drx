@@ -1,10 +1,10 @@
 import React from 'react';
-import {View, Text, StyleSheet} from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 
-const PatientDetail = () => {
+const PatientDetail = ({ patientId }) => {
   return (
     <View style={styles.container}>
-      <Text style={styles.header}>Patient Detail</Text>
+      <Text style={styles.header}>{patientId}</Text>
       <Text>Name: John Doe</Text>
       <Text>Age: 34</Text>
       <Text>Gender: Male</Text>
