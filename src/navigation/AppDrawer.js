@@ -1,3 +1,4 @@
+/* eslint-disable react/no-unstable-nested-components */
 import React from 'react';
 import { createDrawerNavigator } from '@react-navigation/drawer';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -15,6 +16,7 @@ import Dashboard from '../screens/Dashboard';
 import CustomDrawer from '../components/CustomDrawer';
 import CustomHeader from '../components/CustomHeader';
 import PatientForm from '../screens/Patients';
+import PatientList from '../screens/PatientList';
 // import AppStack from './AppStack';
 
 const Drawer = createDrawerNavigator();
@@ -42,6 +44,17 @@ const AppDrawer = () => {
         name="      Dashboard"
         headerShown={false}
         component={Dashboard}
+        options={{
+          drawerIcon: ({ color }) => (
+            <Ionicons name="grid-outline" size={22} color={color} />
+          ),
+        }}
+      />
+
+      <Drawer.Screen
+        name="      Patient List"
+        headerShown={false}
+        component={PatientList}
         options={{
           drawerIcon: ({ color }) => (
             <Ionicons name="grid-outline" size={22} color={color} />

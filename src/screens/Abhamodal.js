@@ -64,9 +64,7 @@ const ABHAModal = ({ modelVisible, setmodelVisible, setAbhaID, handleAutoABDMSea
           initMode: '0', // Assuming '0' is the default mode
         };
       }
-      console.log('Payload:', payload, selectedMode);
       const res = await initiateAbhaVerification(payload); // API call
-      console.log(res);
       if (!res.status) {
         // console.error('Verification failed:', res.errorMessage);
         setLoading(false);
@@ -74,7 +72,6 @@ const ABHAModal = ({ modelVisible, setmodelVisible, setAbhaID, handleAutoABDMSea
       }
       setAbhaData(res.data);
       setAvailableModes(res?.data?.modes || []);
-      console.log('Available Modes:', res.data, res?.data?.modes);
       setStep(2); // move to next step
     } catch (err) {
       alert('Verification failed');
@@ -88,13 +85,10 @@ const ABHAModal = ({ modelVisible, setmodelVisible, setAbhaID, handleAutoABDMSea
 
 
     try {
-      // This is where you'd call second API based on selected mode
-      console.log('Selected Mode:', mode);
       const response = await requestAbhaOtp(abhaData.ia_Token, abhaData.abhaTokenId, mode, inputId); // Replace with real API
       // simu late API delay
       // await new Promise(resolve => setTimeout(resolve, 1000));
       if (response.status) {
-        console.log('OTP Request Successful:', response);
         setTransactionId(response.data.transactionId); // Store transaction ID if needed
         setStep(3);
         alert('OTP sent successfully!');
@@ -113,16 +107,12 @@ const ABHAModal = ({ modelVisible, setmodelVisible, setAbhaID, handleAutoABDMSea
     setLoading(true);
     try {
       const response = await confirmAbhaOtp(abhaData.abhaTokenId, abhaData.ia_Token, abhaData.abhaAddress, abhaData.abhaNumber, transactionId, otp, selectedMode);
-      console.log('OTP Verified:', response);
       // alert('Verification successful!');
       if (response.status) {
         setmodelVisible(false);
         setStep(1); // Reset to first step
-        console.log('ABHA Address:', abhaData.abhaAddress);
         setAbhaID(abhaData.abhaAddress);
-        console.log('ABHA Address:', abhaData.abhaAddress);
         handleAutoABDMSearch(abhaData.abhaAddress);
-        console.log('ABDM Search Triggered');
         clearFields();
         alert('Verification successful!');
       } else {
@@ -240,7 +230,6 @@ const ABHAModal = ({ modelVisible, setmodelVisible, setAbhaID, handleAutoABDMSea
 
 export default ABHAModal;
 
-// Keep your styles here (unchanged)...
 
 
 

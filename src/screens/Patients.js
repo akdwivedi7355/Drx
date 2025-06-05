@@ -2,7 +2,6 @@
 /* eslint-disable react-native/no-inline-styles */
 /* eslint-disable no-alert */
 /* eslint-disable no-shadow */
-/* eslint-disable quotes */
 /* eslint-disable no-unused-vars */
 import React, { useEffect, useState } from 'react';
 import {
@@ -40,7 +39,6 @@ const PatientForm = () => {
 
   useEffect(() => {
     const showSubscription = Keyboard.addListener('keyboardDidShow', () => {
-      console.log('Keyboard is visible');
       setKeyboardVisible(true);
     });
     const hideSubscription = Keyboard.addListener('keyboardDidHide', () => {
@@ -91,7 +89,6 @@ const PatientForm = () => {
   };
 
   const handleABDMSearch = async () => {
-    console.log('ABDM ID:', abdmID);
 
     if (!abdmID.trim()) {
       Alert.alert('Error', 'Please enter a valid ABHA address or Number');
@@ -121,7 +118,6 @@ const PatientForm = () => {
     }
 
     try {
-      console.log('Searching ABDM with type:', type, 'and ID:', trimmedID);
       const response = await verifyAbdmStatus(type, trimmedID);
 
       if (response.status && response.data) {
@@ -141,9 +137,6 @@ const PatientForm = () => {
 
         const dateOfBirth = `${yearOfBirth}-${monthOfBirth.toString().padStart(2, '0')}-${dayOfBirth.toString().padStart(2, '0')}`;
         const calculatedAge = calculateAge(dateOfBirth);
-
-        console.log('Date of Birth:', dateOfBirth);
-        console.log('Calculated Age:', calculatedAge);
 
         const nameParts = user.name?.trim().split(/\s+/) || [];
 
@@ -187,7 +180,6 @@ const PatientForm = () => {
   };
 
   const handleAutoABDMSearch = async (passingabdmsearchid) => {
-    console.log('ABDM ID:', abdmID);
 
     if (!passingabdmsearchid.trim()) return;
 
@@ -204,7 +196,6 @@ const PatientForm = () => {
     }
 
     try {
-      console.log('Searching ABDM with type:', type, 'and ID:', trimmedID);
       const response = await verifyAbdmStatus(type, trimmedID);
 
       if (response.status && response.data) {
@@ -216,7 +207,6 @@ const PatientForm = () => {
         const user = response.data;
         const { yearOfBirth, monthOfBirth, dayOfBirth } = user;
 
-        console.log('User Data:', user);
 
         if (!yearOfBirth || !monthOfBirth || !dayOfBirth) {
           console.warn('Incomplete DOB data:', { yearOfBirth, monthOfBirth, dayOfBirth });
@@ -225,9 +215,6 @@ const PatientForm = () => {
 
         const dateOfBirth = `${yearOfBirth}-${monthOfBirth.toString().padStart(2, '0')}-${dayOfBirth.toString().padStart(2, '0')}`;
         const calculatedAge = calculateAge(dateOfBirth);
-
-        console.log('Date of Birth:', dateOfBirth);
-        console.log('Calculated Age:', calculatedAge);
         const nameParts = user.name?.trim().split(/\s+/) || [];
 
         if (nameParts.length === 2) {
@@ -337,8 +324,6 @@ const PatientForm = () => {
         iAarogyaLinkedId: data.iAarogyaLinkedId || null,
       };
 
-      console.log('Patient Data:', patientdata);
-
       const apires = await AddPatients(patientdata);
 
       if (apires.status) {
@@ -352,7 +337,7 @@ const PatientForm = () => {
       Alert.alert('Error', 'Something went wrong.');
       console.error('Submission error:', err);
     } finally {
-      setLoading(false); // 🔴 END loading
+      setLoading(false);
     }
   };
 
@@ -384,7 +369,7 @@ const PatientForm = () => {
           </TouchableOpacity>
         </View>
 
-        {/* <Button title="Verify ABHA" onPress={handleverifyabha} color="#007BFF" /> */}
+        {/* <Button title="Verify ABHA" onPress={handleverifyabha} color="#102A68" /> */}
 
         <ABHAModal
           modelVisible={modelVisible}
@@ -494,7 +479,7 @@ const PatientForm = () => {
                 activeOpacity={editable ? 0.7 : 1}>
                 <Text style={[styles.dateText,
                 {
-                  color: value ? '#007BFF' : '#AAB6C3', // Blue if selected, gray if not
+                  color: value ? '#102A68' : '#AAB6C3', // Blue if selected, gray if not
                 },
                 !editable && { color: '#888' }]}>
                   {value || 'Date of Birth'}
@@ -549,7 +534,7 @@ const PatientForm = () => {
                     style={[
                       styles.picker,
                       {
-                        color: value ? '#007BFF' : '#AAB6C3', // Blue if selected, gray if not
+                        color: value ? '#102A68' : '#AAB6C3', // Blue if selected, gray if not
                       },
                       editable ? styles.editableInput : styles.disabledInput,
                     ]}>
@@ -581,7 +566,7 @@ const PatientForm = () => {
                     style={[
                       styles.picker,
                       {
-                        color: value ? '#007BFF' : '#AAB6C3', // Blue if selected, gray if not
+                        color: value ? '#102A68' : '#AAB6C3', // Blue if selected, gray if not
                       },
                       editable ? styles.editableInput : styles.disabledInput,
                     ]}>
@@ -717,13 +702,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f7fa',
     paddingBottom: 50,
   },
-  // title: {
-  //   fontSize: 24,
-  //   fontWeight: '700',
-  //   marginBottom: 25,
-  //   textAlign: 'center',
-  //   color: '#2c3e50',
-  // },
   abdmContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -749,15 +727,12 @@ const styles = StyleSheet.create({
   },
   row: {
     flexDirection: 'row',
-    // justifyContent: 'space-between',
-    // alignItems: 'center',
     marginBottom: 10,
   },
   rowgender: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    // marginBottom: 15,
   },
   inputSmall: {
     flex: 1,
@@ -926,12 +901,6 @@ const styles = StyleSheet.create({
     height: 40,
     justifyContent: 'center',
   },
-
-  // picker: {
-  //   height: 45,
-  //   width: '100%',
-  //   color: '#102A68',
-  // },
 });
 
 

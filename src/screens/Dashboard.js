@@ -17,10 +17,12 @@ import {
   getalldoctors,
   getStoredUserDetails,
   getdefaultconsultant,
+  getUserDefaultDetails,
 } from '../api/api';
 import { TextInput } from 'react-native-paper';
 import DateTimePicker from 'react-native-date-picker';
 import PatientForm from './Patients';
+import Feather from 'react-native-vector-icons/Feather';
 
 import { useFocusEffect, useRoute } from '@react-navigation/native';
 
@@ -49,9 +51,9 @@ export default function Dashboard() {
 
   const route = useRoute();
   useFocusEffect(
-    React.useCallback(() => {
-      console.log('Dashboard screen focused');
-      fetchPatients(0, false); // Re-fetch when screen regains focus
+    React.useCallback(async () => {
+      console.log('hjjkdhjehdh');
+      await fetchPatients(0, false); // Re-fetch when screen regains focus
     }, [])
   );
 
@@ -59,13 +61,12 @@ export default function Dashboard() {
 
   const fetchDefaultDoctor = async () => {
     try {
-      const res = await getStoredUserDetails();
+      const res = await getUserDefaultDetails();
       const defaultres = {
-        consultantCode: res.userLinkedConsultantCode,
-        consultantName: res.userLinkedConsultantName,
+        consultantCode: res.data.userLinkedConsultantCode,
+        consultantName: res.data.userLinkedConsultantName,
         consultantInitial: 'Dr.',
       };
-      console.log('Default Doctor:', defaultres);
       setSelectedDoctor(defaultres);
     } catch (err) {
       console.error('Error fetching default doctor:', err);
@@ -155,14 +156,29 @@ export default function Dashboard() {
               Reg No: {item.regNo}
             </Text>
           </View>
-          <TouchableOpacity onPress={() => toggleExpand(item.regId)}>
+          <TouchableOpacity
+            style={{
+              // backgroundColor: 'red',
+              padding: 6,
+              borderColor: 'black',
+              borderWidth: 1, // Add borderWidth for visibility
+              borderRadius: 4
+            }}
+            onPress={() => toggleExpand(item.regId)}
+          >
             <Icon
               name="chevron-forward-circle-outline"
               size={24}
               color="#333"
-              style={{ transform: [{ rotate: expandedId === item.regId ? '90deg' : '0deg' }] }}
+              style={{
+                transform: [
+                  { rotate: expandedId === item.regId ? '-90deg' : '90deg' }
+                ],
+                transition: 'transform 0.3s ease'
+              }}
             />
           </TouchableOpacity>
+
         </View>
         {expandedId === item.regId && (
           <View style={styles.bottomTabs}>
@@ -184,11 +200,24 @@ export default function Dashboard() {
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity onPress={() => setModalVisible(true)}>
-        <Text style={styles.doctorName}>
-          {selectedDoctor ? `${selectedDoctor.consultantName}` : 'Loading...'}
-        </Text>
-      </TouchableOpacity>
+      <View style={styles.docorsection}>
+        <TouchableOpacity style={{ flexDirection: 'row' }} onPress={() => setModalVisible(true)}>
+          {/* <Icon style={{}} name='briefcase-outline' size={28} color="#333" /> */}
+          <Text style={styles.doctorName}>
+            {selectedDoctor ? `${selectedDoctor.consultantInitial} ${selectedDoctor.consultantName}` : 'Loading...'}
+
+          </Text>
+
+
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => setShowDatePicker(true)}
+          style={styles.dateButton}
+        >
+          <Feather name="calendar" size={25} color="#000" />
+          <Text style={{ padding: 4 }}>{selectedDate}</Text>
+        </TouchableOpacity>
+      </View>
 
       {/* Search and Date Picker */}
       <View style={styles.searchRow}>
@@ -199,17 +228,13 @@ export default function Dashboard() {
           onChangeText={setSearchText}
           style={styles.searchInput}
         />
-        <TouchableOpacity
-          onPress={() => setShowDatePicker(true)}
-          style={styles.dateButton}
-        >
-          <Text>{selectedDate}</Text>
-        </TouchableOpacity>
+
         <TouchableOpacity
           onPress={() => navigation.navigate('Patient Registration')}
           style={styles.addButton}
         >
-          <Icon name="add" size={22} color="#fff" />
+          <Icon name="person-add" size={26} color="#fff" />
+          <Text style={{ padding: 4, color: 'white' }}>Add Patient </Text>
         </TouchableOpacity>
       </View>
       z
@@ -275,6 +300,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F9FAFB',
   },
+  docorsection: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   doctorName: {
     fontSize: 18,
     fontWeight: 'bold',
@@ -297,22 +327,25 @@ const styles = StyleSheet.create({
     height: 40,
   },
   dateButton: {
-    padding: 10,
+    flexDirection: 'row',
+    fontSize: 20,
+    // padding: 10,
     backgroundColor: '#FFF',
     borderRadius: 8,
     marginRight: 8,
   },
   addButton: {
+    flexDirection: 'row',
     padding: 10,
     backgroundColor: '#2563EB',
     borderRadius: 8,
   },
   card: {
     marginHorizontal: 16,
-    padding: 12,
+    padding: 6,
     backgroundColor: '#E0E7FF',
-    marginBottom: 14,
-    borderRadius: 16,
+    marginBottom: 10,
+    borderRadius: 10,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -332,12 +365,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-around',
-    paddingVertical: 14,
+    // paddingVertical: 14,
     backgroundColor: '#F3F4F6',
-    borderRadius: 12,
-    marginTop: 12,
+    borderRadius: 8,
+    marginTop: 8,
   },
   tabButton: {
+    padding: 8,
     alignItems: 'center',
     marginVertical: 8,
   },

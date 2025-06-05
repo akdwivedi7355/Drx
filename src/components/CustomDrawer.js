@@ -1,5 +1,5 @@
 /* eslint-disable react-native/no-inline-styles */
-import React, {useEffect, useState} from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -14,9 +14,9 @@ import {
   DrawerItemList,
 } from '@react-navigation/drawer';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import {useDispatch} from 'react-redux';
-import {logout} from '../redux/authSlice';
-import {getUserDefaultDetails} from '../api/api';
+import { useDispatch } from 'react-redux';
+import { logout } from '../redux/authSlice';
+import { clearAsyncStorage, getUserDefaultDetails } from '../api/api';
 
 const CustomDrawer = props => {
   const dispatch = useDispatch();
@@ -25,6 +25,7 @@ const CustomDrawer = props => {
   const [loading, setLoading] = useState(true);
 
   const handleSignOut = () => {
+    clearAsyncStorage();
     dispatch(logout());
   };
 
@@ -46,14 +47,14 @@ const CustomDrawer = props => {
   }, []);
 
   return (
-    <View style={{flex: 1}}>
+    <View style={{ flex: 1 }}>
       <DrawerContentScrollView {...props}>
         <ImageBackground
           source={require('../assets/images/cstside.jpg')}
-          style={{padding: 20,borderCurves: 20}}>
+          style={{ padding: 20, borderCurves: 20 }}>
           <Image
             source={require('../assets/images/user-profile.jpg')}
-            style={{height: 80, width: 80, borderRadius: 40, marginBottom: 10}}
+            style={{ height: 80, width: 80, borderRadius: 40, marginBottom: 10 }}
           />
           {loading ? (
             <ActivityIndicator size="small" color="#fff" />
@@ -76,24 +77,26 @@ const CustomDrawer = props => {
                 }}>
                 {userData?.userEmail || 'No Email'}
               </Text>
-              <Text style={{marginBottom: 2,
+              <Text style={{
+                marginBottom: 2,
                 color: '#fff',
                 fontSize: 14,
-                fontFamily: 'Roboto-Regular'}}>
-                  Consultant: {userData.userLinkedConsultantName || 'N/A'}
+                fontFamily: 'Roboto-Regular'
+              }}>
+                Consultant: {userData.userLinkedConsultantName || 'N/A'}
               </Text>
             </>
           )}
         </ImageBackground>
 
-        <View style={{flex: 1, backgroundColor: '#fff', paddingTop: 20}}>
+        <View style={{ flex: 1, backgroundColor: '#fff', paddingTop: 20 }}>
           <DrawerItemList {...props} />
         </View>
       </DrawerContentScrollView>
 
-      <View style={{padding: 20, borderTopWidth: 1, borderTopColor: '#ccc'}}>
-        <TouchableOpacity onPress={() => {Alert.alert('Friend Not Found');}} style={{paddingVertical: 15}}>
-          <View style={{flexDirection: 'row', alignItems: 'center'}}>
+      <View style={{ padding: 20, borderTopWidth: 1, borderTopColor: '#ccc' }}>
+        <TouchableOpacity onPress={() => { Alert.alert('Friend Not Found'); }} style={{ paddingVertical: 15 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Ionicons name="share-social-outline" size={22} />
             <Text
               style={{
@@ -106,16 +109,16 @@ const CustomDrawer = props => {
           </View>
         </TouchableOpacity>
 
-                paddingBottom: 50,
-                <TouchableOpacity onPress={handleSignOut} style={{paddingVertical: 15, paddingBottom: 50}}>
-          <View style={{flexDirection: 'row', alignItems: 'center'}}>
+        paddingBottom: 50,
+        <TouchableOpacity onPress={handleSignOut} style={{ paddingVertical: 15, paddingBottom: 50 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Ionicons name="exit-outline" size={22} />
             <Text
               style={{
                 fontSize: 15,
                 fontFamily: 'Roboto-Medium',
                 marginLeft: 5,
-               }}>
+              }}>
               Sign Out
             </Text>
           </View>
