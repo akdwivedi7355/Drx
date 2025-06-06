@@ -1,4 +1,6 @@
-/* eslint-disable quotes */
+/* eslint-disable no-unused-vars */
+/* eslint-disable eol-last */
+
 import axios from 'axios';
 import CryptoJS from 'crypto-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -73,7 +75,7 @@ export const clearAsyncStorage = async () => {
   AsyncStorage.clear().then(() =>
     console.log('AsyncStorage cleared'),
   );
-}
+};
 
 const getFromAsyncStorage = async key => {
   try {
@@ -93,7 +95,7 @@ export const userAuthentication = async (authType, loginId, password) => {
   };
   const res = await post('/UserAuthentication', payload);
   if (res.status && res.data) {
-    console.log(res)
+    console.log(res);
     await storeToAsyncStorage('auth_credentials', {
       loginId: res.data.loginId,
       password: res.data.password,
@@ -137,7 +139,7 @@ export const userAuthenticationAuto = async () => {
     loginId: creds.loginId,
     password: creds.password,
   };
-  console.log('userAuthenticationAuto')
+  console.log('userAuthenticationAuto');
   const res = await post('/UserAuthenticationAuto', payload);
   if (res.status && res.data) {
     await storeToAsyncStorage('auth_credentials', {
@@ -383,4 +385,18 @@ export const getpatientprofiledetail = async (patientId) => {
   };
   const headers = { u: creds.u };
   return await post('/PatientProfileDetail', payload, headers);
-};   
+};
+
+export const getpatientListwithoutdoctor = async (searchText, rowPerPage, rowStartFrom) => {
+  const creds = await getFromAsyncStorage('auth_credentials');
+  if (!creds) {
+    return { status: false, errorMessage: 'No stored credentials' };
+  }
+  const payload = {
+    searchText: searchText,
+    rowPerPage: rowPerPage || '10',
+    rowStartFrom: rowStartFrom || '0',
+  };
+  const headers = { u: creds.u };
+};
+

@@ -16,9 +16,18 @@ const AuthTabs = () => {
   useEffect(() => {
     const authenticateUser = async () => {
       try {
-        const response = await userAuthenticationAuto();
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Timeout')), 4000)
+        );
+
+        const response = await Promise.race([
+          userAuthenticationAuto(),
+          timeoutPromise,
+        ]);
+
         console.log(response);
-        if (response.status) {
+
+        if (response?.status) {
           await getUserDefaultDetails();
           dispatch(loginSuccess(response.data));
           // Navigation to home/dashboard should happen here if needed
@@ -26,8 +35,8 @@ const AuthTabs = () => {
           setIsLoading(false); // show login
         }
       } catch (error) {
-        console.log('Auto-login error:', error);
-        setIsLoading(false); // show login on failure
+        console.log('Auto-login error:', error.message || error);
+        setIsLoading(false); // show login on failure or timeout
       }
     };
 

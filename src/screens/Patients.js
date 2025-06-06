@@ -343,10 +343,14 @@ const PatientForm = () => {
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={[styles.container, { paddingBottom: keyboardVisible ? 0 : 50 }]} // Adjust padding based on keyboard visibility
+      enabled
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={{ flex: 1 }}
     >
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContainer}
+        keyboardShouldPersistTaps="handled"
+      >
         {/* ABDM ID Input */}
         <View style={styles.abdmContainer}>
           <TextInput
@@ -820,7 +824,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#6078A0',
     textAlign: 'center',
-    marginBottom: 25,
+    marginBottom: 10,
   },
   tabContainer: {
     flexDirection: 'row',
@@ -843,7 +847,7 @@ const styles = StyleSheet.create({
     borderColor: '#AAB6C3',
     borderRadius: 12,
     padding: 10,
-    marginBottom: 14,
+    marginBottom: 10,
     backgroundColor: '#FFFFFF',
     color: '#102A68',
     fontSize: 15,
@@ -877,7 +881,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     gap: 12,
-    marginBottom: 20,
+    marginBottom: 10,
   },
 
   dropdownWrapper: {

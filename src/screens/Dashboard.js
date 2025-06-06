@@ -1,3 +1,6 @@
+/* eslint-disable react-native/no-inline-styles */
+/* eslint-disable comma-dangle */
+/* eslint-disable curly */
 /* eslint-disable react-hooks/exhaustive-deps */
 import React, { useEffect, useState } from 'react';
 import {
@@ -14,25 +17,25 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import {
   getpatientList,
-  getalldoctors,
-  getStoredUserDetails,
   getdefaultconsultant,
   getUserDefaultDetails,
 } from '../api/api';
 import { TextInput } from 'react-native-paper';
 import DateTimePicker from 'react-native-date-picker';
-import PatientForm from './Patients';
 import Feather from 'react-native-vector-icons/Feather';
 
-import { useFocusEffect, useRoute } from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
+import { makeViewDescriptorsSet } from 'react-native-reanimated/lib/typescript/ViewDescriptorsSet';
 
 const iconMap = {
-  Details: 'person-outline',
-  Report: 'document-text-outline',
-  History: 'time-outline',
-  Prescriptions: 'medkit-outline',
-  Vitals: 'fitness-outline',
+  Prescriptions: { icon: 'clipboard-outline', name: 'Prescription' },
+  Diagnostic: { icon: 'flask-outline', name: 'Diagnostic' },
+  MedicalBill: { icon: 'cash-outline', name: 'Medical Bill' },
+  Discard: { icon: 'trash-outline', name: 'Discard' },
 };
+
+
+
 
 export default function Dashboard() {
   const [selectedDoctor, setSelectedDoctor] = useState(null);
@@ -49,11 +52,10 @@ export default function Dashboard() {
   const navigation = useNavigation();
 
 
-  const route = useRoute();
   useFocusEffect(
-    React.useCallback(async () => {
+    React.useCallback(() => {
       console.log('hjjkdhjehdh');
-      await fetchPatients(0, false); // Re-fetch when screen regains focus
+      fetchPatients(0, false); // Re-fetch when screen regains focus
     }, [])
   );
 
@@ -140,11 +142,39 @@ export default function Dashboard() {
   };
 
   const handleNavigate = (patientId, tab) => {
-    navigation.navigate('PatientTabs', { patientId, initialTab: tab });
+    const patient = patients.find(p => p.regId === patientId);
+
+    console.log('Navigating for patient:', patient, 'Tab:', tab);
+
+    if (!patient) {
+      console.warn('Patient not found!');
+      return;
+    }
+
+    switch (tab) {
+      case 0:
+        navigation.navigate('PrescriptionSubmission', { patient });
+        break;
+      case 1:
+        navigation.navigate('DiagnosticSubmission', { patient });
+        break;
+      case 2:
+        navigation.navigate('MedicalBillSubmission', { patient });
+        break;
+      case 3:
+        navigation.navigate('MedicalBillSubmission', { patient });
+        break;
+      case 6:
+        navigation.navigate('PatientTabs', { patientId, initialTab: 0 });
+        break;
+      default:
+        console.warn('Unhandled tab value:', tab);
+    }
   };
 
+
   const renderPatientItem = ({ item }) => (
-    <TouchableOpacity onPress={() => handleNavigate(item.regId, 0)}>
+    <TouchableOpacity onPress={() => handleNavigate(item.regId, 6)}>
       <View style={styles.card}>
         <View style={styles.cardHeader}>
           <View style={{ flex: 1 }}>
@@ -188,8 +218,8 @@ export default function Dashboard() {
                 style={styles.tabButton}
                 onPress={() => handleNavigate(item.regId, i)}
               >
-                <Icon name={iconMap[label]} size={20} color="#333" />
-                <Text style={styles.tabText}>{label}</Text>
+                <Icon name={iconMap[label].icon} size={20} color="#333" />
+                <Text style={styles.tabText}>{iconMap[label].name}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -237,7 +267,7 @@ export default function Dashboard() {
           <Text style={{ padding: 4, color: 'white' }}>Add Patient </Text>
         </TouchableOpacity>
       </View>
-      z
+
       <DateTimePicker
         modal
         open={showDatePicker}
@@ -371,7 +401,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   tabButton: {
-    padding: 8,
+    padding: 4,
     alignItems: 'center',
     marginVertical: 8,
   },

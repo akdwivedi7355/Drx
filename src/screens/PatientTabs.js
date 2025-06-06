@@ -11,7 +11,9 @@ import Icon from 'react-native-vector-icons/Ionicons';
 const Tab = createBottomTabNavigator();
 
 const PatientTabs = ({ route }) => {
+
   const { patientId, initialTab } = route.params || {};
+  console.log(patientId, initialTab);
   const [fabVisible, setFabVisible] = useState(false);
 
   const handleFabOption = (navigation, tabName) => {
@@ -24,7 +26,7 @@ const PatientTabs = ({ route }) => {
         initialTab === 1 ? 'Report' : initialTab === 2 ? 'History' : 'Detail'
       }
       screenOptions={{
-        tabBarActiveTintColor: 'purple',
+        tabBarActiveTintColor: '#0A3C97',
         tabBarStyle: { backgroundColor: '#f8f8f8' },
         headerShown: false,
       }}>
@@ -146,7 +148,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 70,
     right: 30,
-    backgroundColor: '#aa18ea',
+    backgroundColor: '#0A3C97',
     borderRadius: 50,
     padding: 16,
     elevation: 5,
