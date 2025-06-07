@@ -54,6 +54,7 @@ export default function Dashboard() {
 
   useFocusEffect(
     React.useCallback(() => {
+      fetchDefaultDoctor();
       console.log('hjjkdhjehdh');
       fetchPatients(0, false); // Re-fetch when screen regains focus
     }, [])
@@ -92,11 +93,20 @@ export default function Dashboard() {
   };
 
   const fetchPatients = async (pageIndex = 0, append = false) => {
-    if (!selectedDoctor) return;
+    console.log('Fetching patients for doctor:', selectedDoctor, 'Date:', selectedDate, 'Search:', searchText, 'Page:', pageIndex);
+    let defaultres = {};
+    if (selectedDoctor === null || selectedDoctor.consultantCode === '') {
+      const res = await getUserDefaultDetails();
+      defaultres = {
+        consultantCode: res.data.userLinkedConsultantCode,
+        consultantName: res.data.userLinkedConsultantName,
+        consultantInitial: 'Dr.',
+      };
+    };
     try {
       setLoading(true);
       const res = await getpatientList(
-        selectedDoctor.consultantCode,
+        selectedDoctor.consultantCode || defaultres.consultantCode,
         formatDate(selectedDate),
         searchText,
         '10',
@@ -105,6 +115,7 @@ export default function Dashboard() {
 
       if (res.status && res.data) {
         if (res.data.length < 10) setHasMoreData(false);
+        console.log('Fetched patients:', res.data);
         setPatients(prev => append ? [...prev, ...res.data] : res.data);
       } else {
         setHasMoreData(false);

@@ -398,5 +398,23 @@ export const getpatientListwithoutdoctor = async (searchText, rowPerPage, rowSta
     rowStartFrom: rowStartFrom || '0',
   };
   const headers = { u: creds.u };
+  return await post('/PatientList', payload, headers);
 };
 
+
+export const SaveSaleBillPatient = async (patientData) => {
+  const creds = await getFromAsyncStorage('auth_credentials');
+  if (!creds) {
+    return { status: false, errorMessage: 'No stored credentials' };
+  }
+
+  const payload = {
+    regDocid: patientData.regDocid,
+    isDoc: patientData.isDoc,
+    consultantCode: patientData.consultantCode,
+    uhid: patientData.uhid,
+    rawData: patientData.rawData,
+  };
+  const headers = { u: creds.u };
+  return await post('/SavePrescriptio', payload, headers);
+}
