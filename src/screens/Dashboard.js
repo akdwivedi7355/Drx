@@ -1,3 +1,6 @@
+/* eslint-disable react-native/no-inline-styles */
+/* eslint-disable comma-dangle */
+/* eslint-disable curly */
 /* eslint-disable react-hooks/exhaustive-deps */
 import React, { useEffect, useState } from 'react';
 import {
@@ -8,61 +11,67 @@ import {
   StyleSheet,
   Modal,
   Pressable,
+  ActivityIndicator,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
-import { getpatientList, getalldoctors, getStoredUserDetails, getdefaultconsultant } from '../api/api';
+import {
+  getpatientList,
+  getdefaultconsultant,
+  getUserDefaultDetails,
+} from '../api/api';
 import { TextInput } from 'react-native-paper';
 import DateTimePicker from 'react-native-date-picker';
+import Feather from 'react-native-vector-icons/Feather';
+
+import { useFocusEffect } from '@react-navigation/native';
+import { makeViewDescriptorsSet } from 'react-native-reanimated/lib/typescript/ViewDescriptorsSet';
 
 const iconMap = {
-  Details: 'person-outline',
-  Report: 'document-text-outline',
-  History: 'time-outline',
-  Prescriptions: 'medkit-outline',
-  Vitals: 'fitness-outline',
+  Prescriptions: { icon: 'clipboard-outline', name: 'Prescription' },
+  Diagnostic: { icon: 'flask-outline', name: 'Diagnostic' },
+  MedicalBill: { icon: 'cash-outline', name: 'Medical Bill' },
+  Discard: { icon: 'trash-outline', name: 'Discard' },
 };
+
+
+
 
 export default function Dashboard() {
   const [selectedDoctor, setSelectedDoctor] = useState(null);
   const [doctors, setDoctors] = useState([]);
   const [patients, setPatients] = useState([]);
+  const [page, setPage] = useState(0);
+  const [hasMoreData, setHasMoreData] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [expandedId, setExpandedId] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
-  const navigation = useNavigation();
-  const [defaultsite, setDefaultSite] = useState(null);
   const [searchText, setSearchText] = useState('');
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const navigation = useNavigation();
 
 
-  useEffect(() => {
-    // Fetch default doctor and all doctors
-    fetchDefaultDoctor();
-    fetchDoctors();
-  }, []);
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchDefaultDoctor();
+      console.log('hjjkdhjehdh');
+      fetchPatients(0, false); // Re-fetch when screen regains focus
+    }, [])
+  );
 
-  useEffect(() => {
-    if (selectedDoctor) {
-      fetchPatients(selectedDoctor.consultantCode, selectedDate, searchText);
-    }
-  }, [selectedDoctor, selectedDate, searchText]);
 
 
   const fetchDefaultDoctor = async () => {
     try {
-      const res = await getStoredUserDetails();
-      console.log('Default doctor fetched:', res);
+      const res = await getUserDefaultDetails();
       const defaultres = {
-        consultantCode: res.userLinkedConsultantCode,
-        consultantName: res.userLinkedConsultantName,
+        consultantCode: res.data.userLinkedConsultantCode,
+        consultantName: res.data.userLinkedConsultantName,
         consultantInitial: 'Dr.',
       };
-      setDefaultSite(res.facilityDisplayName);
       setSelectedDoctor(defaultres);
-      fetchPatients()(defaultres.consultantCode, selectedDate, searchText);
-    }
-    catch (err) {
+    } catch (err) {
       console.error('Error fetching default doctor:', err);
     }
   };
@@ -71,69 +80,71 @@ export default function Dashboard() {
     try {
       const res = await getdefaultconsultant();
       if (res.status && res.data) {
-        console.log('Doctors fetched:', res.data);
         setDoctors(res.data);
-      } else {
-        console.error('Doctor list fetch failed:', res.errorMessage);
       }
     } catch (err) {
       console.error('Error fetching doctors:', err);
     }
   };
 
-  // const fetchPatients = async consultantCode => {
-  //   try {
-  //     console.log('Fetching patients for consultant:', consultantCode);
-  //     const res = await getpatientList(
-  //       consultantCode,
-  //       new Date().toISOString().split('T')[0],
-  //       '',
-  //       '10',
-  //       '0'
-  //     );
-  //     console.log('Patients fetched:', res);
-  //     if (res.status && res.data) {
-  //       setPatients(res.data);
-  //     } else {
-  //       console.error('Patient fetch failed:', res.errorMessage);
-  //       setPatients([]);
-  //     }
-  //   } catch (err) {
-  //     console.error('Error fetching patients:', err);
-  //     setPatients([]);
-  //   }
-  // };
-
   const formatDate = (inputDate) => {
     const dateObj = new Date(inputDate);
-    const day = String(dateObj.getDate()).padStart(2, '0');
-    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-    const year = dateObj.getFullYear();
-    return `${day}-${month}-${year}`;
+    return `${String(dateObj.getDate()).padStart(2, '0')}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${dateObj.getFullYear()}`;
   };
 
-  const fetchPatients = async (consultantCode, date, search) => {
+  const fetchPatients = async (pageIndex = 0, append = false) => {
+    console.log('Fetching patients for doctor:', selectedDoctor, 'Date:', selectedDate, 'Search:', searchText, 'Page:', pageIndex);
+    let defaultres = {};
+    if (selectedDoctor === null || selectedDoctor.consultantCode === '') {
+      const res = await getUserDefaultDetails();
+      defaultres = {
+        consultantCode: res.data.userLinkedConsultantCode,
+        consultantName: res.data.userLinkedConsultantName,
+        consultantInitial: 'Dr.',
+      };
+    };
     try {
-      const formattedDate = formatDate(date); // ✅ formats the selected date
-      console.log(' date:', date);
-      console.log('Formatted date:', formattedDate);
-
+      setLoading(true);
       const res = await getpatientList(
-        consultantCode,
-        formattedDate,
-        search,
+        selectedDoctor.consultantCode || defaultres.consultantCode,
+        formatDate(selectedDate),
+        searchText,
         '10',
-        '0'
+        (pageIndex * 10).toString()
       );
+
       if (res.status && res.data) {
-        setPatients(res.data);
+        if (res.data.length < 10) setHasMoreData(false);
+        console.log('Fetched patients:', res.data);
+        setPatients(prev => append ? [...prev, ...res.data] : res.data);
       } else {
-        console.error('Patient fetch failed:', res.errorMessage);
-        setPatients([]);
+        setHasMoreData(false);
       }
     } catch (err) {
       console.error('Error fetching patients:', err);
-      setPatients([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDefaultDoctor();
+    fetchDoctors();
+  }, []);
+
+  useEffect(() => {
+    if (selectedDoctor) {
+      setPage(0);
+      setHasMoreData(true);
+      fetchPatients(0, false);
+    }
+  }, [selectedDoctor, selectedDate, searchText]);
+
+  const handleLoadMore = () => {
+    if (!loading && hasMoreData) {
+      const nextPage = page + 1;
+      setPage(nextPage);
+      fetchPatients(nextPage, true);
     }
   };
 
@@ -142,76 +153,129 @@ export default function Dashboard() {
   };
 
   const handleNavigate = (patientId, tab) => {
-    navigation.navigate('PatientTabs', { patientId, initialTab: tab });
+    const patient = patients.find(p => p.regId === patientId);
+
+    console.log('Navigating for patient:', patient, 'Tab:', tab);
+
+    if (!patient) {
+      console.warn('Patient not found!');
+      return;
+    }
+
+    switch (tab) {
+      case 0:
+        navigation.navigate('PrescriptionSubmission', { patient });
+        break;
+      case 1:
+        navigation.navigate('DiagnosticSubmission', { patient });
+        break;
+      case 2:
+        navigation.navigate('MedicalBillSubmission', { patient });
+        break;
+      case 3:
+        navigation.navigate('MedicalBillSubmission', { patient });
+        break;
+      case 6:
+        navigation.navigate('PatientTabs', { patientId, initialTab: 0 });
+        break;
+      default:
+        console.warn('Unhandled tab value:', tab);
+    }
   };
 
-  const renderBottomTabStyle = patientId => (
-    <View style={styles.bottomTabs}>
-      {Object.keys(iconMap).map((label, i) => (
-        <TouchableOpacity
-          key={label}
-          style={styles.tabButton}
-          onPress={() => handleNavigate(patientId, i)}
-        >
-          <Icon name={iconMap[label]} size={20} color="#333" />
-          <Text style={styles.tabText}>{label}</Text>
-        </TouchableOpacity>
-      ))}
-    </View>
+
+  const renderPatientItem = ({ item }) => (
+    <TouchableOpacity onPress={() => handleNavigate(item.regId, 6)}>
+      <View style={styles.card}>
+        <View style={styles.cardHeader}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.name}>{item.patientName}</Text>
+            <Text style={styles.metaText}>
+              UHIDNO: {item.uhidNo} | Reg Date: {item.regDate}
+            </Text>
+            <Text style={styles.metaText}>
+              Reg No: {item.regNo}
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={{
+              // backgroundColor: 'red',
+              padding: 6,
+              borderColor: 'black',
+              borderWidth: 1, // Add borderWidth for visibility
+              borderRadius: 4
+            }}
+            onPress={() => toggleExpand(item.regId)}
+          >
+            <Icon
+              name="chevron-forward-circle-outline"
+              size={24}
+              color="#333"
+              style={{
+                transform: [
+                  { rotate: expandedId === item.regId ? '-90deg' : '90deg' }
+                ],
+                transition: 'transform 0.3s ease'
+              }}
+            />
+          </TouchableOpacity>
+
+        </View>
+        {expandedId === item.regId && (
+          <View style={styles.bottomTabs}>
+            {Object.keys(iconMap).map((label, i) => (
+              <TouchableOpacity
+                key={label}
+                style={styles.tabButton}
+                onPress={() => handleNavigate(item.regId, i)}
+              >
+                <Icon name={iconMap[label].icon} size={20} color="#333" />
+                <Text style={styles.tabText}>{iconMap[label].name}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+      </View>
+    </TouchableOpacity>
   );
 
   return (
     <View style={styles.container}>
+      <View style={styles.docorsection}>
+        <TouchableOpacity style={{ flexDirection: 'row' }} onPress={() => setModalVisible(true)}>
+          {/* <Icon style={{}} name='briefcase-outline' size={28} color="#333" /> */}
+          <Text style={styles.doctorName}>
+            {selectedDoctor ? `${selectedDoctor.consultantInitial} ${selectedDoctor.consultantName}` : 'Loading...'}
 
-      {/* Doctor Name */}
-      <TouchableOpacity onPress={() => setModalVisible(true)}>
-        <Text style={styles.doctorName}>
-          {selectedDoctor ? `${selectedDoctor.consultantName}` : 'Loading...'}
-        </Text>
-      </TouchableOpacity>
+          </Text>
 
-      {/* Search field */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, marginBottom: 10, justifyContent: 'space-between' }}>
-        {/* Doctor Selector */}
 
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => setShowDatePicker(true)}
+          style={styles.dateButton}
+        >
+          <Feather name="calendar" size={25} color="#000" />
+          <Text style={{ padding: 4 }}>{selectedDate}</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Search and Date Picker */}
+      <View style={styles.searchRow}>
         <TextInput
           mode="outlined"
           placeholder="Search Patients"
           value={searchText}
           onChangeText={setSearchText}
-          style={{
-            flex: 1.2,
-            marginLeft: 8,
-            backgroundColor: '#fff',
-            height: 35,
-          }}
+          style={styles.searchInput}
         />
-        {/* Date Picker */}
+
         <TouchableOpacity
-          onPress={() => {
-            const today = new Date().toISOString().split('T')[0];
-            setShowDatePicker(true);
-            setSelectedDate(today); // Later replace with your own picker
-          }}
-          style={{ padding: 10, marginLeft: 8, backgroundColor: '#FFF', borderRadius: 8 }}
+          onPress={() => navigation.navigate('Patient Registration')}
+          style={styles.addButton}
         >
-          <Text>{selectedDate}</Text>
-        </TouchableOpacity>
-
-        {/* Search Input */}
-
-
-        {/* + Icon */}
-        <TouchableOpacity
-          onPress={() => navigation.navigate('      Patients')}
-          style={{
-            marginLeft: 8,
-            padding: 10,
-            backgroundColor: '#2563EB',
-            borderRadius: 8,
-          }}
-        >
-          <Icon name="add" size={22} color="#fff" />
+          <Icon name="person-add" size={26} color="#fff" />
+          <Text style={{ padding: 4, color: 'white' }}>Add Patient </Text>
         </TouchableOpacity>
       </View>
 
@@ -220,20 +284,15 @@ export default function Dashboard() {
         open={showDatePicker}
         date={new Date(selectedDate)}
         mode="date"
-        onConfirm={selectedDate => {
-          setSelectedDate(selectedDate.toISOString().split('T')[0]);
+        onConfirm={(date) => {
+          setSelectedDate(date.toISOString().split('T')[0]);
           setShowDatePicker(false);
         }}
         onCancel={() => setShowDatePicker(false)}
       />
 
       {/* Doctor Selection Modal */}
-      <Modal
-        visible={modalVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setModalVisible(false)}
-      >
+      <Modal visible={modalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             {doctors.map(doc => (
@@ -242,8 +301,8 @@ export default function Dashboard() {
                 style={styles.modalItem}
                 onPress={() => {
                   setSelectedDoctor(doc);
-                  setExpandedId(null);
                   setModalVisible(false);
+                  setExpandedId(null);
                 }}
               >
                 <Text style={styles.modalText}>
@@ -259,80 +318,75 @@ export default function Dashboard() {
       <FlatList
         data={patients}
         keyExtractor={(item) => item.regId.toString()}
-        renderItem={({ item }) => (
-          <View style={styles.card}>
-            <View style={styles.cardHeader}>
-              {expandedId !== item.regId && (
-                <TouchableOpacity onPress={() => handleNavigate(item.regId, 0)}>
-                  <Text style={styles.name}>
-                    {item.patientName}
-                  </Text>
-                </TouchableOpacity>
-
-              )}
-              <TouchableOpacity onPress={() => toggleExpand(item.regId)}>
-                <View style={{ transform: [{ rotate: expandedId === item.regId ? '90deg' : '0deg' }] }}>
-                  <Icon
-                    name="chevron-forward"
-                    size={22}
-                    color="#333"
-                  />
-                </View>
-              </TouchableOpacity>
-            </View>
-            {expandedId === item.regId && (
-              <View>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Text style={{ fontSize: 14, }}>{item.patientName}</Text>
-                  <Text style={{ fontSize: 12, color: '#666' }}>{item.regDate}</Text>
-                </View>
-                {renderBottomTabStyle(item.regId)}
-              </View>
-            )}
-          </View>
-        )}
+        renderItem={renderPatientItem}
+        onEndReached={handleLoadMore}
+        onEndReachedThreshold={0.5}
         ListEmptyComponent={
-          <Text style={{ textAlign: 'center', marginTop: 20 }}>
-            No patients found.
-          </Text>
+          <Text style={styles.emptyText}>No patients found.</Text>
+        }
+        ListFooterComponent={
+          loading ? (
+            <ActivityIndicator style={{ marginVertical: 16 }} />
+          ) : !hasMoreData && patients.length > 0 ? (
+            <Text style={styles.footerText}>No more records.</Text>
+          ) : null
         }
       />
-
-    </View >
+    </View>
   );
 }
-
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    // padding: 16,
     backgroundColor: '#F9FAFB',
+  },
+  docorsection: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   doctorName: {
     fontSize: 18,
     fontWeight: 'bold',
-    marginBottom: 20,
     paddingHorizontal: 16,
-    // textAlign: 'center',
     color: '#2563EB',
     backgroundColor: '#F3F4F9',
     paddingVertical: 10,
-    // borderRadius: 12,
+  },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    marginBottom: 10,
+    justifyContent: 'space-between',
+  },
+  searchInput: {
+    flex: 1.2,
+    marginRight: 8,
+    backgroundColor: '#fff',
+    height: 40,
+  },
+  dateButton: {
+    flexDirection: 'row',
+    fontSize: 20,
+    // padding: 10,
+    backgroundColor: '#FFF',
+    borderRadius: 8,
+    marginRight: 8,
+  },
+  addButton: {
+    flexDirection: 'row',
+    padding: 10,
+    backgroundColor: '#2563EB',
+    borderRadius: 8,
   },
   card: {
     marginHorizontal: 16,
-    padding: 12,
-    // backgroundColor: 'grey',
+    padding: 6,
     backgroundColor: '#E0E7FF',
-    // backgroundColor: '#F3F4F9',
-    marginBottom: 14,
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 3 },
-    // elevation: 5,
+    marginBottom: 10,
+    borderRadius: 10,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -340,23 +394,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   name: {
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: '600',
     color: '#1F2937',
+  },
+  metaText: {
+    fontSize: 12,
+    color: '#555',
   },
   bottomTabs: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-around',
-    paddingVertical: 14,
+    // paddingVertical: 14,
     backgroundColor: '#F3F4F6',
-    borderRadius: 12,
-    marginTop: 16,
-    elevation: 2,
+    borderRadius: 8,
+    marginTop: 8,
   },
   tabButton: {
+    padding: 4,
     alignItems: 'center',
-    // marginHorizontal: 12,
     marginVertical: 8,
   },
   tabText: {
@@ -387,5 +444,15 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '500',
     color: '#111827',
+  },
+  emptyText: {
+    textAlign: 'center',
+    marginTop: 20,
+    color: '#888',
+  },
+  footerText: {
+    textAlign: 'center',
+    marginVertical: 16,
+    color: '#888',
   },
 });

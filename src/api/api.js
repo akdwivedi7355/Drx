@@ -1,10 +1,13 @@
-/* eslint-disable quotes */
+/* eslint-disable no-unused-vars */
+/* eslint-disable eol-last */
+
 import axios from 'axios';
 import CryptoJS from 'crypto-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const BaseURL = 'http://192.168.7.79:8008/aarogyaRx_v5/aarogyaRx/apis/v1/';
 const BaseURLLive = 'https://uataarogyarx.dmaarogya.com/aarogyarx/aarogyaRx/apis/v1/';
+
 
 const AES_KEY = '1c012b9c8aa74363aa541b8080e886e0';
 const AES_IV = '080aae32c79b49bf';
@@ -14,7 +17,6 @@ const encrypt = (plainText) => {
   var key = CryptoJS.enc.Utf8.parse(AES_KEY);
   var iv = CryptoJS.enc.Utf8.parse(AES_IV);
 
-  console.log("IV (Base64):", CryptoJS.enc.Base64.stringify(iv));
   var cipherText = CryptoJS.AES.encrypt(plainText, key, {
     iv: iv,
   });
@@ -30,8 +32,6 @@ const decrypt = (cipherText) => {
     mode: CryptoJS.mode.CBC,
     padding: CryptoJS.pad.Pkcs7,
   });
-  console.log("Decrypted:", decrypted);
-  console.log(decrypted.toString(CryptoJS.enc.Utf8));
   if (decrypted.sigBytes <= 0) {
     console.error('Decryption failed: Invalid ciphertext or key/IV');
     return null;
@@ -44,7 +44,6 @@ const post = async (url, data, headers = {}) => {
   try {
     const response = await axios.post(`${BaseURLLive}${url}`, data, { headers });
     if (response.data.respCode === 'ERR0001') {
-      // Session is invalid, attempt re-authentication
       console.warn('Session invalid. Attempting automatic re-authentication...');
       const autoLoginRes = await userAuthenticationAuto();
       if (!autoLoginRes.status) {
@@ -57,7 +56,6 @@ const post = async (url, data, headers = {}) => {
       headers.u = newCreds.u;
       return await post(url, data, headers);
     }
-    console.log("Response:", response);
     return response.data;
   } catch (error) {
     console.error(`API error at ${url}:`, error.message);
@@ -71,6 +69,12 @@ const storeToAsyncStorage = async (key, value) => {
   } catch (e) {
     console.error('AsyncStorage Save Error:', e);
   }
+};
+
+export const clearAsyncStorage = async () => {
+  AsyncStorage.clear().then(() =>
+    console.log('AsyncStorage cleared'),
+  );
 };
 
 const getFromAsyncStorage = async key => {
@@ -89,10 +93,9 @@ export const userAuthentication = async (authType, loginId, password) => {
     loginId: encrypt(loginId),
     password: encrypt(password),
   };
-  console.log("payload", payload);
   const res = await post('/UserAuthentication', payload);
-  console.log("res", res);
   if (res.status && res.data) {
+    console.log(res);
     await storeToAsyncStorage('auth_credentials', {
       loginId: res.data.loginId,
       password: res.data.password,
@@ -107,9 +110,6 @@ export const requestOtp = async (authType, loginId) => {
     authType: authType,
     loginId: encrypt(loginId),
   };
-  console.log("payload", payload);
-  const decript = decrypt(payload.loginId);
-  console.log("decript", decript);
   return await post('/RequestOTP', payload);
 };
 
@@ -130,6 +130,7 @@ export const verifyOtp = async (authType, loginId, otpValue) => {
   return res;
 };
 
+
 export const userAuthenticationAuto = async () => {
   const creds = await getFromAsyncStorage('auth_credentials');
   if (!creds) { return { status: false, errorMessage: 'No stored credentials' }; }
@@ -138,6 +139,7 @@ export const userAuthenticationAuto = async () => {
     loginId: creds.loginId,
     password: creds.password,
   };
+  console.log('userAuthenticationAuto');
   const res = await post('/UserAuthenticationAuto', payload);
   if (res.status && res.data) {
     await storeToAsyncStorage('auth_credentials', {
@@ -148,6 +150,8 @@ export const userAuthenticationAuto = async () => {
   }
   return res;
 };
+
+
 
 export const getUserDefaultDetails = async () => {
   const creds = await getFromAsyncStorage('auth_credentials');
@@ -170,7 +174,6 @@ export const getUserDefaultDetails = async () => {
     const newHeaders = { u: newCreds.u };
     res = await post('/DefaultValues', {}, newHeaders);
   }
-  console.log("res", res);
   if (res.status && res.data) {
     await storeToAsyncStorage('user_details', res.data);
   }
@@ -211,7 +214,6 @@ export const requestAbhaOtp = async (
     initMode: '0',
     abhaAddress,
   };
-  console.log("payload", payload);
   const creds = await getFromAsyncStorage('auth_credentials');
   if (!creds) { return { status: false, errorMessage: 'No stored credentials' }; }
 
@@ -271,7 +273,6 @@ export const forgetPassword = async (otp, authType, loginId, newPassword) => {
     loginId: encrypt(loginId),
     newPassword: encrypt(newPassword),
   };
-  console.log("payload", payload);
   const headers = { u: creds.u };
   return await post('/ForgotPassword', payload, headers);
 };
@@ -289,7 +290,9 @@ export const getdefaultconsultant = async () => {
   return res;
 };
 
-export const getStoredDefaultConsultant = async () => { return await getFromAsyncStorage('default_consultant'); };
+export const getStoredDefaultConsultant = async () => {
+  return await getFromAsyncStorage('default_consultant');
+};
 
 export const getAllDoctors = async () => {
   const creds = await getFromAsyncStorage('auth_credentials');
@@ -319,12 +322,11 @@ export const getpatientList = async (consultantCode, date, searchText = '', rowP
   }
   const payload = {
     consultantCode: consultantCode,
-    date: date || new Date().toISOString().split('T')[0], // Current date in YYYY-MM-DD format
+    date: date || new Date().toISOString().split('T')[0],
     searchText: searchText,
     rowPerPage: rowPerPage || '10',
     rowStartFrom: rowStartFrom || '0',
   };
-  console.log("payload", payload);
   const headers = { u: creds.u };
   const res = await post('/DashboardPatients', payload, headers);
   if (res.status && res.data) {
@@ -341,44 +343,6 @@ export const getPatientDetails = async (patientId) => {
   const headers = { u: creds.u };
   return await post('/PatientDetails', payload, headers);
 };
-
-// export const getalldoctors = async () => {
-//   return {
-//     status: true,
-//     data: [
-//       {
-//         consultantCode: '1000100000000000033',
-//         consultantName: 'Test Consultant 2',
-//         consultantInitial: 'Dr.',
-//       },
-//       {
-//         consultantCode: '1000100000000000032',
-//         consultantName: 'Test Consultant 3',
-//         consultantInitial: 'Dr.',
-//       },
-//     ],
-//   };
-// };
-
-// export const getpatientList = async (consultantCode, date, search, limit, offset) => {
-//   return {
-//     status: true,
-//     data: [
-//       {
-//         patientName: 'Ramesh Kumar Gupta',
-//         abhaNumber: '1234567890',
-//         abhaAddress: '1234567890@abha',
-//         regId: '1000100000000023',
-//       },
-//       {
-//         patientName: 'Suresh Verma',
-//         abhaNumber: '0987654321',
-//         abhaAddress: '0987654321@abha',
-//         regId: '1000100000000024',
-//       },
-//     ],
-//   };
-// };
 
 export const AddPatients = async (patientData) => {
   const creds = await getFromAsyncStorage('auth_credentials');
@@ -406,9 +370,51 @@ export const AddPatients = async (patientData) => {
     abhaMobile: patientData.abhaMobile,
     iAarogyaLinkedId: patientData.iAarogyaLinkedId || null,
   };
-
-  console.log("payload", payload);
   const headers = { u: creds.u };
   return await post('/AddPatient', payload, headers);
 };
 
+export const getpatientprofiledetail = async (patientId) => {
+  const creds = await getFromAsyncStorage('auth_credentials');
+  if (!creds) {
+    return { status: false, errorMessage: 'No stored credentials' };
+  }
+  const payload = {
+    isUhid: false,
+    id: patientId,
+  };
+  const headers = { u: creds.u };
+  return await post('/PatientProfileDetail', payload, headers);
+};
+
+export const getpatientListwithoutdoctor = async (searchText, rowPerPage, rowStartFrom) => {
+  const creds = await getFromAsyncStorage('auth_credentials');
+  if (!creds) {
+    return { status: false, errorMessage: 'No stored credentials' };
+  }
+  const payload = {
+    searchText: searchText,
+    rowPerPage: rowPerPage || '10',
+    rowStartFrom: rowStartFrom || '0',
+  };
+  const headers = { u: creds.u };
+  return await post('/PatientList', payload, headers);
+};
+
+
+export const SaveSaleBillPatient = async (patientData) => {
+  const creds = await getFromAsyncStorage('auth_credentials');
+  if (!creds) {
+    return { status: false, errorMessage: 'No stored credentials' };
+  }
+
+  const payload = {
+    regDocid: patientData.regDocid,
+    isDoc: patientData.isDoc,
+    consultantCode: patientData.consultantCode,
+    uhid: patientData.uhid,
+    rawData: patientData.rawData,
+  };
+  const headers = { u: creds.u };
+  return await post('/SavePrescriptio', payload, headers);
+}

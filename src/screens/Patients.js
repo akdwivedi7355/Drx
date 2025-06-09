@@ -2,7 +2,6 @@
 /* eslint-disable react-native/no-inline-styles */
 /* eslint-disable no-alert */
 /* eslint-disable no-shadow */
-/* eslint-disable quotes */
 /* eslint-disable no-unused-vars */
 import React, { useEffect, useState } from 'react';
 import {
@@ -22,6 +21,7 @@ import DateTimePicker from 'react-native-date-picker';
 import { Picker } from '@react-native-picker/picker';
 import Icon from 'react-native-vector-icons/Ionicons';
 import ABHAModal from './Abhamodal';
+import { useNavigation } from '@react-navigation/native';
 import { AddPatients, getStoredDefaultConsultant, getUserDefaultDetails, verifyAbdmStatus } from '../api/api';
 
 const PatientForm = () => {
@@ -33,12 +33,12 @@ const PatientForm = () => {
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const [editable, setEditable] = useState(true);
   const [loading, setLoading] = useState(false);
+  const navigation = useNavigation();
 
 
 
   useEffect(() => {
     const showSubscription = Keyboard.addListener('keyboardDidShow', () => {
-      console.log('Keyboard is visible');
       setKeyboardVisible(true);
     });
     const hideSubscription = Keyboard.addListener('keyboardDidHide', () => {
@@ -89,7 +89,6 @@ const PatientForm = () => {
   };
 
   const handleABDMSearch = async () => {
-    console.log('ABDM ID:', abdmID);
 
     if (!abdmID.trim()) {
       Alert.alert('Error', 'Please enter a valid ABHA address or Number');
@@ -119,7 +118,6 @@ const PatientForm = () => {
     }
 
     try {
-      console.log('Searching ABDM with type:', type, 'and ID:', trimmedID);
       const response = await verifyAbdmStatus(type, trimmedID);
 
       if (response.status && response.data) {
@@ -139,9 +137,6 @@ const PatientForm = () => {
 
         const dateOfBirth = `${yearOfBirth}-${monthOfBirth.toString().padStart(2, '0')}-${dayOfBirth.toString().padStart(2, '0')}`;
         const calculatedAge = calculateAge(dateOfBirth);
-
-        console.log('Date of Birth:', dateOfBirth);
-        console.log('Calculated Age:', calculatedAge);
 
         const nameParts = user.name?.trim().split(/\s+/) || [];
 
@@ -185,7 +180,6 @@ const PatientForm = () => {
   };
 
   const handleAutoABDMSearch = async (passingabdmsearchid) => {
-    console.log('ABDM ID:', abdmID);
 
     if (!passingabdmsearchid.trim()) return;
 
@@ -202,7 +196,6 @@ const PatientForm = () => {
     }
 
     try {
-      console.log('Searching ABDM with type:', type, 'and ID:', trimmedID);
       const response = await verifyAbdmStatus(type, trimmedID);
 
       if (response.status && response.data) {
@@ -214,7 +207,6 @@ const PatientForm = () => {
         const user = response.data;
         const { yearOfBirth, monthOfBirth, dayOfBirth } = user;
 
-        console.log('User Data:', user);
 
         if (!yearOfBirth || !monthOfBirth || !dayOfBirth) {
           console.warn('Incomplete DOB data:', { yearOfBirth, monthOfBirth, dayOfBirth });
@@ -223,9 +215,6 @@ const PatientForm = () => {
 
         const dateOfBirth = `${yearOfBirth}-${monthOfBirth.toString().padStart(2, '0')}-${dayOfBirth.toString().padStart(2, '0')}`;
         const calculatedAge = calculateAge(dateOfBirth);
-
-        console.log('Date of Birth:', dateOfBirth);
-        console.log('Calculated Age:', calculatedAge);
         const nameParts = user.name?.trim().split(/\s+/) || [];
 
         if (nameParts.length === 2) {
@@ -277,11 +266,27 @@ const PatientForm = () => {
     setAbdmID('');
     setAge('');
     setmodelVisible(false);
+    setEditable(true); // Reset editable state to true
   };
 
   const handleverifyabha = () => {
     setmodelVisible(true);
   };
+
+  const formatDOB = (dob) => {
+    if (!dob) return '';
+
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+
+    const [year, month, day] = dob.split('-');
+    const monthName = months[parseInt(month, 10) - 1];
+
+    return `${day}-${monthName}-${year}`;
+  };
+
 
   const onSubmit = async (data) => {
     if (!data.firstName || !data.lastName || !data.dob || !data.mobile) {
@@ -300,6 +305,7 @@ const PatientForm = () => {
         data.name = data.name.trim();
       }
 
+
       const patientdata = {
         consultantCode: consultant?.data?.userLinkedConsultantCode,
         patientPrefix: data.patientPrefix,
@@ -308,7 +314,7 @@ const PatientForm = () => {
         patientLastName: data.lastName,
         patientName: data.name,
         patientGender: data.gender,
-        patientDob: data.dob,
+        patientDob: formatDOB(data.dob),
         patientMobile: data.mobile,
         patientEmail: data.email,
         address1: data.address,
@@ -323,6 +329,7 @@ const PatientForm = () => {
       if (apires.status) {
         Alert.alert('Success', 'Patient registered successfully');
         handleclearFields();
+        navigation.goBack();
       } else {
         Alert.alert('Error', 'Failed to register patient: ' + apires.errorMessage);
       }
@@ -330,16 +337,20 @@ const PatientForm = () => {
       Alert.alert('Error', 'Something went wrong.');
       console.error('Submission error:', err);
     } finally {
-      setLoading(false); // 🔴 END loading
+      setLoading(false);
     }
   };
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={[styles.container, { paddingBottom: keyboardVisible ? 300 : 50 }]} // Adjust padding based on keyboard visibility
+      enabled
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={{ flex: 1 }}
     >
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContainer}
+        keyboardShouldPersistTaps="handled"
+      >
         {/* ABDM ID Input */}
         <View style={styles.abdmContainer}>
           <TextInput
@@ -362,7 +373,7 @@ const PatientForm = () => {
           </TouchableOpacity>
         </View>
 
-        {/* <Button title="Verify ABHA" onPress={handleverifyabha} color="#007BFF" /> */}
+        {/* <Button title="Verify ABHA" onPress={handleverifyabha} color="#102A68" /> */}
 
         <ABHAModal
           modelVisible={modelVisible}
@@ -387,7 +398,7 @@ const PatientForm = () => {
                   { marginRight: 10 },
                   editable ? styles.editableInput : styles.disabledInput,
                 ]}
-                placeholder="First Name"
+                placeholder="First"
 
                 placeholderTextColor="#AAB6C3"
                 value={value}
@@ -422,7 +433,7 @@ const PatientForm = () => {
                   { marginRight: 10 },
                   editable ? styles.editableInput : styles.disabledInput,
                 ]}
-                placeholder="Middle Name"
+                placeholder="Middle"
 
                 placeholderTextColor="#AAB6C3"
                 value={value}
@@ -443,7 +454,7 @@ const PatientForm = () => {
                   { marginRight: 10 },
                   editable ? styles.editableInput : styles.disabledInput,
                 ]}
-                placeholder="Last Name"
+                placeholder="Last"
                 // placeholdertextsize="small"
                 placeholderTextColor="#AAB6C3"
                 value={value}
@@ -470,7 +481,11 @@ const PatientForm = () => {
                   editable ? styles.editableInput : styles.disabledInput,
                 ]}
                 activeOpacity={editable ? 0.7 : 1}>
-                <Text style={[styles.dateText, !editable && { color: '#888' }]}>
+                <Text style={[styles.dateText,
+                {
+                  color: value ? '#102A68' : '#AAB6C3', // Blue if selected, gray if not
+                },
+                !editable && { color: '#888' }]}>
                   {value || 'Date of Birth'}
                 </Text>
               </TouchableOpacity>
@@ -519,11 +534,19 @@ const PatientForm = () => {
                     selectedValue={value}
                     onValueChange={editable ? onChange : () => { }}
                     enabled={editable}
+                    dropdownIconColor={'#AAB6C3'}
                     style={[
                       styles.picker,
+                      {
+                        color: value ? '#102A68' : '#AAB6C3', // Blue if selected, gray if not
+                      },
                       editable ? styles.editableInput : styles.disabledInput,
                     ]}>
-                    <Picker.Item label="Select Gender" value="" />
+                    <Picker.Item
+                      label="Gender"
+                      value=""
+                      enabled={false}
+                    />
                     <Picker.Item label="Male" value="Male" />
                     <Picker.Item label="Female" value="Female" />
                     <Picker.Item label="Other" value="Other" />
@@ -544,8 +567,14 @@ const PatientForm = () => {
                     selectedValue={value}
                     onValueChange={editable ? onChange : () => { }}
                     enabled={editable}
-                    style={styles.picker}>
-                    <Picker.Item label="Select Blood Group" value="" />
+                    style={[
+                      styles.picker,
+                      {
+                        color: value ? '#102A68' : '#AAB6C3', // Blue if selected, gray if not
+                      },
+                      editable ? styles.editableInput : styles.disabledInput,
+                    ]}>
+                    <Picker.Item label="Blood Group" value="" enabled={false} />
                     <Picker.Item label="A+" value="A+" />
                     <Picker.Item label="A-" value="A-" />
                     <Picker.Item label="B+" value="B+" />
@@ -597,6 +626,7 @@ const PatientForm = () => {
           )}
         />
         {/* Email Input */}
+        <Text style={styles.label}>Email</Text>
         <Controller
           control={control}
           name="email"
@@ -659,10 +689,7 @@ const PatientForm = () => {
           <TouchableOpacity
             style={styles.clearButton}
             onPress={() => {
-              reset();
-              setAbdmID('');
-              setAge('');
-              setEditable(true);
+
               handleclearFields();
             }}>
             <Text style={styles.buttonText}>Clear</Text>
@@ -679,17 +706,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f7fa',
     paddingBottom: 50,
   },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    marginBottom: 25,
-    textAlign: 'center',
-    color: '#2c3e50',
-  },
   abdmContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 10,
     backgroundColor: '#fff',
     borderRadius: 10,
     paddingHorizontal: 10,
@@ -711,15 +731,12 @@ const styles = StyleSheet.create({
   },
   row: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 15,
+    marginBottom: 10,
   },
   rowgender: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    // marginBottom: 15,
   },
   inputSmall: {
     flex: 1,
@@ -730,14 +747,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#AAB6C3',
     borderRadius: 12,
-    padding: 14,
+    padding: 10,
     color: '#102A68',
     fontSize: 15,
   },
   pickerContainer: {
     backgroundColor: '#fff',
     borderRadius: 10,
-    marginBottom: 15,
+    marginBottom: 10,
     elevation: 2,
     overflow: 'hidden',
     shadowColor: '#000',
@@ -756,21 +773,21 @@ const styles = StyleSheet.create({
   buttonRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginTop: 25,
+    marginTop: 15,
   },
   submitButton: {
     backgroundColor: 'blue',
     paddingVertical: 12,
-    paddingHorizontal: 25,
+    paddingHorizontal: 30,
     borderRadius: 8,
     elevation: 3,
   },
   clearButton: {
     backgroundColor: 'grey',
-    paddingVertical: 12,
-    paddingHorizontal: 25,
+    paddingVertical: 10,
+    paddingHorizontal: 35,
     borderRadius: 8,
-    elevation: 3,
+    elevation: 2,
   },
   buttonText: {
     color: '#fff',
@@ -807,7 +824,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#6078A0',
     textAlign: 'center',
-    marginBottom: 25,
+    marginBottom: 10,
   },
   tabContainer: {
     flexDirection: 'row',
@@ -829,8 +846,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#AAB6C3',
     borderRadius: 12,
-    padding: 14,
-    marginBottom: 14,
+    padding: 10,
+    marginBottom: 10,
     backgroundColor: '#FFFFFF',
     color: '#102A68',
     fontSize: 15,
@@ -864,7 +881,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     gap: 12,
-    marginBottom: 20,
+    marginBottom: 10,
   },
 
   dropdownWrapper: {
@@ -884,14 +901,10 @@ const styles = StyleSheet.create({
     borderColor: '#CED4DA',
     borderRadius: 10,
     overflow: 'hidden',
+    textAlign: 'left',
+    height: 40,
     justifyContent: 'center',
   },
-
-  // picker: {
-  //   height: 45,
-  //   width: '100%',
-  //   color: '#102A68',
-  // },
 });
 
 
