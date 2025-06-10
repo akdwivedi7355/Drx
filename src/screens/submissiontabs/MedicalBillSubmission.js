@@ -1,157 +1,196 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
-    Text,
+    Alert,
+    PermissionsAndroid,
+    Platform,
     StyleSheet,
-    TouchableOpacity,
     Image,
     ScrollView,
-    Alert,
-    Modal,
+    TouchableOpacity,
+    ActivityIndicator,
+    SafeAreaView,
+    Text,
 } from 'react-native';
-import { Camera } from 'react-native-vision-camera';
-import Ionicons from 'react-native-vector-icons/Ionicons';
-import RNFS from 'react-native-fs';
+import DocumentScanner from 'react-native-document-scanner-plugin';
 import RNHTMLtoPDF from 'react-native-html-to-pdf';
-import { useRoute } from '@react-navigation/native';
-
+import RNFS from 'react-native-fs';
 import ImageResizer from 'react-native-image-resizer';
-import { getUserDefaultDetails, SaveSaleBillPatient } from '../../api/api';
+import { getUserDefaultDetails, saveMedicalBillReort } from '../../api/api';
+import { useNavigation } from '@react-navigation/native';
 
 const MedicalBillSubmission = ({ route }) => {
-    const [hasPermission, setHasPermission] = useState(false);
-    const [capturedImages, setCapturedImages] = useState([]);
-    const [device, setDevice] = useState(null);
-    const [previewImage, setPreviewImage] = useState(null);
-    const cameraRef = useRef(null);
+    const [scannedImages, setScannedImages] = useState([]);
+    const [isProcessing, setIsProcessing] = useState(false);
+    const [patientName, setPatientName] = useState('');
+    const [patientID, setPatientID] = useState('');
     const Patient = route.params?.patient || {};
+    // Add more as needed
+
+    const navigation = useNavigation();
 
     useEffect(() => {
-        (async () => {
-            const permission = await Camera.requestCameraPermission();
-            setHasPermission(permission === 'granted');
-
-            // Retry logic for camera devices
-            let attempts = 0;
-            let foundDevice = null;
-
-            while (attempts < 5 && !foundDevice) {
-                const devices = await Camera.getAvailableCameraDevices();
-                const backCamera = devices.find(d => d.position === 'back');
-                if (backCamera) {
-                    foundDevice = backCamera;
-                    break;
-                }
-                attempts++;
-                await new Promise(res => setTimeout(res, 500)); // wait 500ms before retry
-            }
-
-            if (foundDevice) {
-                setDevice(foundDevice);
-            } else {
-                Alert.alert("Error", "No camera devices found. Please try again.");
-            }
-        })();
+        requestStoragePermission();
     }, []);
 
-    const takePhoto = async () => {
-        if (!cameraRef.current) return;
-        const photo = await cameraRef.current.takePhoto({
-            qualityPrioritization: 'quality',
-            flash: 'off',
-        });
-        setCapturedImages(prev => [...prev, photo]);
-    };
-
-    const removeImage = index => {
-        const newImages = [...capturedImages];
-        newImages.splice(index, 1);
-        setCapturedImages(newImages);
-    };
-
-
-    const compressImages = async (images) => {
-        const compressed = [];
-
-        for (const img of images) {
-            try {
-                const compressedImage = await ImageResizer.createResizedImage(
-                    img.path || img.uri,
-                    800,
-                    1100,
-                    'JPEG',
-                    60
-                );
-
-                // Make sure URI is correctly prefixed with file://
-                const validPath = compressedImage.uri.startsWith('file://')
-                    ? compressedImage.uri
-                    : 'file://' + compressedImage.uri;
-
-                compressed.push({ path: validPath });
-            } catch (err) {
-                console.error('Image compression failed:', err);
-            }
+    const requestStoragePermission = async () => {
+        if (Platform.OS !== 'android') return true;
+        try {
+            const granted = await PermissionsAndroid.request(
+                PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
+                {
+                    title: 'Storage Permission',
+                    message: 'App needs access to save PDF files.',
+                    buttonPositive: 'OK',
+                }
+            );
+            return granted === PermissionsAndroid.RESULTS.GRANTED;
+        } catch (error) {
+            console.error('Permission error:', error);
+            return false;
         }
-
-        return compressed;
     };
 
-    const convertToPDFAndUpload = async () => {
-        if (capturedImages.length === 0) {
-            Alert.alert('No Image', 'Please capture at least one image.');
+    const scanDocument = async () => {
+        if (
+            Platform.OS === 'android' &&
+            (await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.CAMERA)) !==
+            PermissionsAndroid.RESULTS.GRANTED
+        ) {
+            Alert.alert('Permission Denied', 'Camera permission is required.');
             return;
         }
 
         try {
-            const compressedImages = await compressImages(capturedImages);
+            const { scannedImages } = await DocumentScanner.scanDocument({
+                croppedImageQuality: 10,
+            });
 
-            const html = `
-<html>
-  <head>
-    <style>
-      @page { size: A4; margin: 5px; }
-      body { margin: 0; padding: 0; }
-      .image-container {
-        page-break-after: always;
-        text-align: center;
-        padding: 5px;
-      }
-      img {
-        max-width: 100%;
-        height: auto;
-      }
-    </style>
-  </head>
-  <body>
-    ${compressedImages.map(img => `
-      <div class="image-container">
-        <img src="${img.path}" />
-      </div>
-    `).join('')}
-  </body>
-</html>
-`;
+            if (scannedImages.length > 0) {
+                setScannedImages(scannedImages);
+            }
+        } catch (error) {
+            console.error('Scan error:', error);
+        }
+    };
 
-            const options = {
-                html,
-                fileName: `medical_bill_${Date.now()}`,
+    const convertImagesToPDFBase64 = async (images) => {
+        try {
+            if (images.length === 0) {
+                Alert.alert('Error', 'No images to convert.');
+                return null;
+            }
+
+            const optimizedImagePaths = [];
+
+            // Resize images to fit A4 within reason
+            for (const img of images) {
+                const resized = await ImageResizer.createResizedImage(
+                    img,
+                    1000,
+                    1400,
+                    'JPEG',
+                    90
+                );
+
+                const path = resized.uri.startsWith('file://') ? resized.uri : 'file://' + resized.uri;
+                optimizedImagePaths.push(path);
+            }
+
+            const htmlContent = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <meta charset="UTF-8">
+              <style>
+                @page {
+                  size: A4;
+                  margin: 0;
+                }
+                body {
+                  margin: 0;
+                  padding: 0;
+                  background-color: #FFFFFF;
+                }
+                .page {
+                  page-break-after: always;
+                  width: 100%;
+                  height: 100vh;
+                  padding: 0;
+                  margin: 0;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  box-sizing: border-box;
+                }
+                .page:last-child {
+                  page-break-after: auto;
+                }
+                .image-container {
+                  width: 100%;
+                  height: 100%;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  overflow: hidden;
+                }
+                img {
+                  max-width: 100%;
+                  max-height: 100%;
+                  object-fit: contain;
+                  margin: 0 auto;
+                  display: block;
+                }
+              </style>
+            </head>
+            <body>
+              ${optimizedImagePaths.map(
+                (image) => `
+                <div class="page">
+                  <div class="image-container">
+                    <img src="${image}" />
+                  </div>
+                </div>
+              `
+            ).join('')}
+            </body>
+            </html>
+        `;
+
+            const pdf = await RNHTMLtoPDF.convert({
+                html: htmlContent,
+                fileName: `scanned_document_${Date.now()}`,
                 directory: 'Documents',
-                height: 1122,
-                width: 793,
-            };
+                base64: true, // to upload to API
+                width: 595,    // A4 width in points
+                height: 842,   // A4 height in points
+                quality: 100,
+                bgColor: '#FFFFFF',
+            });
 
-            const file = await RNHTMLtoPDF.convert(options);
+            return pdf.base64;
 
-            // If needed, you can compress the PDF here using native modules or external service.
-            // But RNHTMLtoPDF does not support native PDF compression directly.
-            // Ensure image compression is sufficient.
+        } catch (error) {
+            console.error('PDF creation error:', error);
+            Alert.alert('Error', 'PDF generation failed.');
+            return null;
+        }
+    };
 
-            const base64 = await RNFS.readFile(file.filePath, 'base64');
-            console.log('PDF created at:', file.filePath);
-            console.log('PDF Base64:', base64); // Log first 100 chars for debugging
 
-            console.log('Patient data:', Patient);
+    const handleSubmit = async () => {
+        if (scannedImages.length === 0) {
+            Alert.alert('Error', 'No scanned images to submit.');
+            return;
+        }
+
+        setIsProcessing(true);
+
+        try {
+            const pdfBase64 = await convertImagesToPDFBase64(scannedImages);
+            console.log('PDF Base64:', pdfBase64);
+            if (!pdfBase64) return;
+
             const resdoc = await getUserDefaultDetails();
             const defaultres = {
                 consultantCode: resdoc.data.userLinkedConsultantCode,
@@ -164,150 +203,107 @@ const MedicalBillSubmission = ({ route }) => {
                 isDoc: true,
                 consultantCode: defaultres.consultantCode,
                 uhid: Patient.uhid,
-                rawData: base64,
+                rawData: pdfBase64,
             };
 
             console.log('Patient data to save:', patientData);
 
-            const res = await SaveSaleBillPatient(patientData);
+            const res = await saveMedicalBillReort(patientData);
             if (!res) {
                 Alert.alert('Error', 'Failed to save patient data.');
                 return;
             }
-            console.log('Patient data saved successfully:', res);
-
-            Alert.alert('Success', 'PDF uploaded successfully!');
-        } catch (err) {
-            console.error(err);
-            Alert.alert('Error', 'Failed to create/upload PDF.');
+            Alert.alert('Success', 'PDF submitted successfully.');
+            handleClear(); // Clear images after successful submission
+            navigation.goBack();
+        } catch (error) {
+            console.error('Submission error:', error);
+            Alert.alert('Error', 'Failed to submit PDF.');
+        } finally {
+            setIsProcessing(false);
         }
     };
 
-
-    if (!hasPermission || !device) {
-        return (
-            <View style={styles.center}>
-                <Text>Waiting for camera...</Text>
-            </View>
-        );
+    const handleClear = () => {
+        setScannedImages([]);
     }
 
+
+
+
+
     return (
-        <View style={styles.container}>
-            {previewImage ? (
-                <Modal transparent>
-                    <View style={styles.previewContainer}>
-                        <Image
-                            source={{ uri: 'file://' + previewImage }}
-                            style={styles.fullImage}
-                        />
-                        <TouchableOpacity
-                            style={styles.closeButton}
-                            onPress={() => setPreviewImage(null)}>
-                            <Ionicons name="close-circle" size={40} color="#fff" />
-                        </TouchableOpacity>
-                    </View>
-                </Modal>
-            ) : (
-                <>
-                    <Camera
-                        ref={cameraRef}
-                        style={StyleSheet.absoluteFill}
-                        device={device}
-                        isActive={true}
-                        photo={true}
+        <SafeAreaView style={styles.container}>
+            <ScrollView contentContainerStyle={styles.imageContainer}>
+                {scannedImages.map((uri, index) => (
+                    <Image
+                        key={index}
+                        source={{ uri }}
+                        style={styles.image}
+                        resizeMode="contain"
                     />
-                    <View style={styles.controls}>
-                        <TouchableOpacity onPress={takePhoto} style={styles.captureBtn}>
-                            <Ionicons name="camera" size={30} color="#fff" />
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            onPress={convertToPDFAndUpload}
-                            style={styles.submitBtn}>
-                            <Text style={{ color: '#fff' }}>Submit</Text>
-                        </TouchableOpacity>
-                    </View>
-                    <ScrollView horizontal style={styles.thumbnailScroll}>
-                        {capturedImages.map((img, i) => (
-                            <View key={i} style={styles.thumbContainer}>
-                                <TouchableOpacity onPress={() => setPreviewImage(img.path)}>
-                                    <Image
-                                        source={{ uri: 'file://' + img.path }}
-                                        style={styles.thumb}
-                                    />
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                    style={styles.removeBtn}
-                                    onPress={() => removeImage(i)}>
-                                    <Ionicons name="close" size={20} color="#fff" />
-                                </TouchableOpacity>
-                            </View>
-                        ))}
-                    </ScrollView>
-                </>
-            )}
-        </View>
+                ))}
+                {isProcessing && <ActivityIndicator size="large" color="#007AFF" />}
+            </ScrollView>
+
+            <View style={styles.footer}>
+                <TouchableOpacity style={styles.button} onPress={scanDocument}>
+                    <Text style={styles.buttonText}>Scan</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                    onPress={() => {
+                        console.log('Pressed submit');
+                        handleSubmit();
+                    }}
+                    style={styles.button}
+                >
+                    <Text style={styles.buttonText}>Submit</Text>
+                </TouchableOpacity>
+
+            </View>
+        </SafeAreaView>
     );
 };
 
+export default MedicalBillSubmission;
+
 const styles = StyleSheet.create({
-    container: { flex: 1 },
-    center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    controls: {
-        position: 'absolute',
-        bottom: 20,
-        width: '100%',
-        flexDirection: 'row',
-        justifyContent: 'space-around',
-    },
-    captureBtn: {
-        backgroundColor: '#007AFF',
-        padding: 12,
-        borderRadius: 50,
-    },
-    submitBtn: {
-        backgroundColor: '#28a745',
-        padding: 12,
-        borderRadius: 8,
-    },
-    thumbnailScroll: {
-        position: 'absolute',
-        bottom: 100,
-        paddingHorizontal: 10,
-    },
-    thumbContainer: {
-        position: 'relative',
-        marginRight: 10,
-    },
-    thumb: {
-        width: 80,
-        height: 80,
-        borderRadius: 5,
-    },
-    removeBtn: {
-        position: 'absolute',
-        top: 2,
-        right: 2,
-        backgroundColor: 'red',
-        borderRadius: 10,
-        padding: 2,
-    },
-    previewContainer: {
+    container: {
         flex: 1,
-        backgroundColor: 'black',
-        justifyContent: 'center',
+        backgroundColor: '#fff',
+    },
+    imageContainer: {
+        padding: 10,
         alignItems: 'center',
     },
-    fullImage: {
+    image: {
         width: '100%',
-        height: '100%',
-        resizeMode: 'contain',
+        height: 300,
+        marginVertical: 10,
+        borderRadius: 10,
     },
-    closeButton: {
-        position: 'absolute',
-        top: 40,
-        right: 20,
+    footer: {
+        flexDirection: 'row',
+        justifyContent: 'space-around',
+        padding: 15,
+        backgroundColor: '#f8f8f8',
+        borderTopWidth: 1,
+        borderColor: '#ddd',
+    },
+    button: {
+        flex: 1,
+        backgroundColor: '#007AFF',
+        paddingVertical: 14,
+        marginHorizontal: 8,
+        borderRadius: 8,
+        alignItems: 'center',
+    },
+    submitButton: {
+        backgroundColor: '#28a745',
+    },
+    buttonText: {
+        color: '#fff',
+        fontWeight: 'bold',
+        fontSize: 16,
     },
 });
-
-export default MedicalBillSubmission;
