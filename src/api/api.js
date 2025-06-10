@@ -402,7 +402,7 @@ export const getpatientListwithoutdoctor = async (searchText, rowPerPage, rowSta
 };
 
 
-export const SaveSaleBillPatient = async (patientData) => {
+export const SavePrescriptionReport = async (patientData) => {
   const creds = await getFromAsyncStorage('auth_credentials');
   if (!creds) {
     return { status: false, errorMessage: 'No stored credentials' };
@@ -416,5 +416,39 @@ export const SaveSaleBillPatient = async (patientData) => {
     rawData: patientData.rawData,
   };
   const headers = { u: creds.u };
-  return await post('/SavePrescriptio', payload, headers);
+  return await post('/SavePrescription', payload, headers);
+}
+
+export const SaveDiagnosticReport = async (patientData) => {
+  const creds = await getFromAsyncStorage('auth_credentials');
+  if (!creds) {
+    return { status: false, errorMessage: 'No stored credentials' };
+  }
+
+  const payload = {
+    regDocid: patientData.regDocid,
+    isDoc: patientData.isDoc,
+    consultantCode: patientData.consultantCode,
+    uhid: patientData.uhid,
+    rawData: patientData.rawData,
+  };
+  const headers = { u: creds.u };
+  return await post('/SavePrescription', payload, headers);
+}
+
+export const saveMedicalBillReort = async (patientData) => {
+  const creds = await getFromAsyncStorage('auth_credentials');
+  if (!creds) {
+    return { status: false, errorMessage: 'No stored credentials' };
+  }
+
+  const payload = {
+    regDocid: patientData.regDocid,
+    isDoc: patientData.isDoc,
+    consultantCode: patientData.consultantCode,
+    uhid: patientData.uhid,
+    rawData: patientData.rawData,
+  };
+  const headers = { u: creds.u };
+  return await post('/SaveSaleBill', payload, headers);
 }

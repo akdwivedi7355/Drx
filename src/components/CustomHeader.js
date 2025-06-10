@@ -39,7 +39,7 @@ const CustomHeader = () => {
 
 const styles = StyleSheet.create({
     header: {
-        height: 60,
+        height: 40,
         backgroundColor: '#0A3C97',
         flexDirection: 'row',
         alignItems: 'center',

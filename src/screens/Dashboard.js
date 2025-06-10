@@ -274,8 +274,8 @@ export default function Dashboard() {
           onPress={() => navigation.navigate('Patient Registration')}
           style={styles.addButton}
         >
-          <Icon name="person-add" size={26} color="#fff" />
-          <Text style={{ padding: 4, color: 'white' }}>Add Patient </Text>
+          <Icon name="person-add" size={20} color="#fff" />
+          <Text style={{ color: 'white' }}>Add Patient </Text>
         </TouchableOpacity>
       </View>
 
@@ -293,8 +293,12 @@ export default function Dashboard() {
 
       {/* Doctor Selection Modal */}
       <Modal visible={modalVisible} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setModalVisible(false)} // Dismiss modal on touch outside
+        >
+          <Pressable style={styles.modalContent} onPress={() => { }} >
+            {/* Prevent touch from propagating to the outer Pressable */}
             {doctors.map(doc => (
               <Pressable
                 key={doc.consultantCode}
@@ -310,8 +314,8 @@ export default function Dashboard() {
                 </Text>
               </Pressable>
             ))}
-          </View>
-        </View>
+          </Pressable>
+        </Pressable>
       </Modal>
 
       {/* Patient List */}
@@ -347,7 +351,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   doctorName: {
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: 'bold',
     paddingHorizontal: 16,
     color: '#2563EB',
@@ -365,7 +369,7 @@ const styles = StyleSheet.create({
     flex: 1.2,
     marginRight: 8,
     backgroundColor: '#fff',
-    height: 40,
+    height: 20,
   },
   dateButton: {
     flexDirection: 'row',
