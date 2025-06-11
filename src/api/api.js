@@ -264,8 +264,8 @@ export const verifyAbdmStatus = async (type, value) => {
 };
 
 export const forgetPassword = async (otp, authType, loginId, newPassword) => {
-  const creds = await getFromAsyncStorage('auth_credentials');
-  if (!creds) { return { status: false, errorMessage: 'No stored credentials' }; }
+  // const creds = await getFromAsyncStorage('auth_credentials');
+  // if (!creds) { return { status: false, errorMessage: 'No stored credentials' }; }
 
   const payload = {
     otpValue: encrypt(otp),
@@ -273,8 +273,8 @@ export const forgetPassword = async (otp, authType, loginId, newPassword) => {
     loginId: encrypt(loginId),
     newPassword: encrypt(newPassword),
   };
-  const headers = { u: creds.u };
-  return await post('/ForgotPassword', payload, headers);
+  // const headers = { u: creds.u };
+  return await post('/ForgotPassword', payload);
 };
 
 export const getdefaultconsultant = async () => {

@@ -10,8 +10,14 @@ import {
     StyleSheet,
     Alert,
     ScrollView,
+    KeyboardAvoidingView,
+    Platform,
+    Animated,
+    Dimensions,
 } from 'react-native';
 import { forgetPassword, requestOtp } from '../api/api';
+import LinearGradient from 'react-native-linear-gradient';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 const ForgetScreen = ({ onForgotPress }) => {
     const [input, setInput] = useState('');
@@ -22,6 +28,17 @@ const ForgetScreen = ({ onForgotPress }) => {
     const [otpSent, setOtpSent] = useState(false);
     const [timer, setTimer] = useState(0);
     const [inputDisabled, setInputDisabled] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    const fadeAnim = useState(new Animated.Value(0))[0];
+
+    useEffect(() => {
+        Animated.timing(fadeAnim, {
+            toValue: 1,
+            duration: 1000,
+            useNativeDriver: true,
+        }).start();
+    }, [fadeAnim]);
 
     useEffect(() => {
         let interval;
@@ -75,140 +92,250 @@ const ForgetScreen = ({ onForgotPress }) => {
         setOtp('');
         setNewPassword('');
         setConfirmPassword('');
-        setOtpSent(false); // Close the forget screen after successful reset
+        setOtpSent(false);
         setInputDisabled(false);
         setTimer(0);
-        onForgotPress(); // Call the callback to close the forget screen
-        // Optionally, you can navigate back to the login screen or perform any other action
-        // Uncomment if using navigation
+        onForgotPress();
     };
 
     return (
-        <ScrollView contentContainerStyle={styles.scrollContainer}>
-            <View style={styles.container}>
-                <Text style={styles.header}>Forgot Password</Text>
+        <KeyboardAvoidingView 
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={styles.container}>
+            <ScrollView contentContainerStyle={styles.scrollContainer}>
+                <Animated.View style={[styles.containerBox, { opacity: fadeAnim }]}>
+                    <LinearGradient
+                        colors={['#1a237e', '#0A3C97', '#1565c0']}
+                        style={styles.headerGradient}>
+                        <Icon name="lock-reset" size={50} color="#fff" />
+                        <Text style={styles.header}>Reset Password</Text>
+                        <Text style={styles.subHeader}>Recover your account access</Text>
+                    </LinearGradient>
 
-                <TextInput
-                    placeholder="Enter username, email or mobile"
-                    value={input}
-                    onChangeText={setInput}
-                    style={[styles.input, inputDisabled && styles.disabledInput]}
-                    editable={!inputDisabled}
-                />
-
-                {!otpSent ? (
-                    <>
-                        <TouchableOpacity style={styles.button} onPress={handleRequestOtp}>
-                            <Text style={styles.buttonText}>Send OTP</Text>
-                        </TouchableOpacity>
-                        <View style={{ alignItems: 'flex-start', marginTop: 20 }}>
-                            <TouchableOpacity onPress={onForgotPress}>
-                                <Text style={{ color: '#0A3C97', fontWeight: "600", textDecorationLine: 'underline' }}>
-                                    Go to login screen?
-                                </Text>
-                            </TouchableOpacity>
+                    <View style={styles.formContainer}>
+                        <View style={styles.inputContainer}>
+                            <Icon name="account" size={24} color="#0A3C97" style={styles.inputIcon} />
+                            <TextInput
+                                placeholder="Username, Email, or Mobile"
+                                placeholderTextColor="#666"
+                                value={input}
+                                onChangeText={setInput}
+                                style={[styles.input, inputDisabled && styles.disabledInput]}
+                                editable={!inputDisabled}
+                            />
                         </View>
 
-                    </>
+                        {!otpSent ? (
+                            <>
+                                <TouchableOpacity
+                                    style={styles.gradientButton}
+                                    onPress={handleRequestOtp}>
+                                    <LinearGradient
+                                        colors={['#1a237e', '#0A3C97']}
+                                        style={styles.gradient}>
+                                        <Text style={styles.buttonText}>Send OTP</Text>
+                                    </LinearGradient>
+                                </TouchableOpacity>
 
-                ) : (
-                    <>
-                        {timer > 0 ? (
-                            <Text style={styles.timerText}>Resend OTP in {timer}s</Text>
+                                <TouchableOpacity
+                                    style={styles.switchMode}
+                                    onPress={onForgotPress}>
+                                    <Text style={styles.switchModeText}>Back to Login</Text>
+                                </TouchableOpacity>
+                            </>
                         ) : (
-                            <TouchableOpacity onPress={handleRequestOtp}>
-                                <Text style={styles.resendText}>Resend OTP</Text>
-                            </TouchableOpacity>
-                        )}
+                            <>
+                                {timer > 0 ? (
+                                    <Text style={styles.timerText}>Resend OTP in {timer}s</Text>
+                                ) : (
+                                    <TouchableOpacity onPress={handleRequestOtp}>
+                                        <Text style={styles.resendText}>Resend OTP</Text>
+                                    </TouchableOpacity>
+                                )}
 
-                        <TextInput
-                            placeholder="Enter OTP"
-                            value={otp}
-                            onChangeText={setOtp}
-                            keyboardType="number-pad"
-                            style={styles.input}
-                        />
-                        <TextInput
-                            placeholder="New Password"
-                            secureTextEntry
-                            value={newPassword}
-                            onChangeText={setNewPassword}
-                            style={styles.input}
-                        />
-                        <TextInput
-                            placeholder="Confirm Password"
-                            secureTextEntry
-                            value={confirmPassword}
-                            onChangeText={setConfirmPassword}
-                            style={styles.input}
-                        />
-                        <TouchableOpacity style={styles.button} onPress={handleResetPassword}>
-                            <Text style={styles.buttonText}>Reset Password</Text>
-                        </TouchableOpacity>
-                    </>
-                )}
-            </View>
-        </ScrollView>
+                                <View style={styles.inputContainer}>
+                                    <Icon name="key-variant" size={24} color="#0A3C97" style={styles.inputIcon} />
+                                    <TextInput
+                                        placeholder="Enter OTP"
+                                        value={otp}
+                                        onChangeText={setOtp}
+                                        keyboardType="number-pad"
+                                        style={styles.input}
+                                        placeholderTextColor="#666"
+                                    />
+                                </View>
+
+                                <View style={styles.inputContainer}>
+                                    <Icon name="lock-outline" size={24} color="#0A3C97" style={styles.inputIcon} />
+                                    <TextInput
+                                        placeholder="New Password"
+                                        value={newPassword}
+                                        onChangeText={setNewPassword}
+                                        secureTextEntry={!showPassword}
+                                        style={styles.input}
+                                        placeholderTextColor="#666"
+                                    />
+                                    <TouchableOpacity 
+                                        onPress={() => setShowPassword(!showPassword)}
+                                        style={styles.eyeIcon}>
+                                        <Icon 
+                                            name={showPassword ? "eye-off" : "eye"} 
+                                            size={24} 
+                                            color="#0A3C97" 
+                                        />
+                                    </TouchableOpacity>
+                                </View>
+
+                                <View style={styles.inputContainer}>
+                                    <Icon name="lock-outline" size={24} color="#0A3C97" style={styles.inputIcon} />
+                                    <TextInput
+                                        placeholder="Confirm Password"
+                                        value={confirmPassword}
+                                        onChangeText={setConfirmPassword}
+                                        secureTextEntry={!showConfirmPassword}
+                                        style={styles.input}
+                                        placeholderTextColor="#666"
+                                    />
+                                    <TouchableOpacity 
+                                        onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                                        style={styles.eyeIcon}>
+                                        <Icon 
+                                            name={showConfirmPassword ? "eye-off" : "eye"} 
+                                            size={24} 
+                                            color="#0A3C97" 
+                                        />
+                                    </TouchableOpacity>
+                                </View>
+
+                                <TouchableOpacity
+                                    style={styles.gradientButton}
+                                    onPress={handleResetPassword}>
+                                    <LinearGradient
+                                        colors={['#1a237e', '#0A3C97']}
+                                        style={styles.gradient}>
+                                        <Text style={styles.buttonText}>Reset Password</Text>
+                                    </LinearGradient>
+                                </TouchableOpacity>
+                            </>
+                        )}
+                    </View>
+                </Animated.View>
+            </ScrollView>
+        </KeyboardAvoidingView>
     );
 };
 
-export default ForgetScreen;
+const { width } = Dimensions.get('window');
 
 const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: '#f5f6fa',
+    },
     scrollContainer: {
         flexGrow: 1,
         justifyContent: 'center',
-        backgroundColor: '#E8ECF4',
         padding: 20,
     },
-    container: {
-        backgroundColor: '#fff',
+    containerBox: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 20,
+        width: '100%',
+        maxWidth: 450,
+        alignSelf: 'center',
+        elevation: 5,
+        shadowColor: '#000',
+        shadowOpacity: 0.2,
+        shadowRadius: 15,
+        shadowOffset: { width: 0, height: 5 },
+        overflow: 'hidden',
+    },
+    headerGradient: {
+        padding: 30,
+        alignItems: 'center',
+    },
+    formContainer: {
         padding: 25,
-        borderRadius: 15,
-        elevation: 3,
     },
     header: {
-        fontSize: 22,
+        fontSize: 28,
         fontWeight: '700',
-        color: '#0A3C97',
-        marginBottom: 20,
-        textAlign: 'center',
+        color: '#FFFFFF',
+        marginTop: 15,
+    },
+    subHeader: {
+        fontSize: 16,
+        color: '#E8ECF4',
+        marginTop: 5,
+    },
+    inputContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#F5F6FA',
+        borderRadius: 12,
+        marginBottom: 16,
+        borderWidth: 1,
+        borderColor: '#E8ECF4',
+    },
+    inputIcon: {
+        padding: 10,
+        marginLeft: 5,
     },
     input: {
-        borderWidth: 1,
-        borderColor: '#264487',
-        borderRadius: 10,
-        padding: 12,
-        marginBottom: 12,
-        backgroundColor: '#FFFFFF',
-        color: '#0A3C97',
+        flex: 1,
+        padding: 15,
+        fontSize: 16,
+        color: '#333',
     },
-    disabledInput: {
-        backgroundColor: '#D3D3D3',
-        color: '#7B7B7B',
+    eyeIcon: {
+        padding: 10,
     },
-    button: {
-        backgroundColor: '#0A3C97',
-        padding: 14,
-        borderRadius: 10,
+    gradientButton: {
+        borderRadius: 12,
+        marginVertical: 10,
+        elevation: 2,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 3.84,
+    },
+    gradient: {
+        paddingVertical: 15,
+        borderRadius: 12,
         alignItems: 'center',
-        marginTop: 10,
     },
     buttonText: {
         color: '#FFFFFF',
-        fontWeight: '700',
         fontSize: 16,
+        fontWeight: '600',
     },
     timerText: {
         textAlign: 'center',
-        color: '#335589',
+        color: '#0A3C97',
+        fontSize: 14,
         fontWeight: '600',
-        marginBottom: 12,
+        marginVertical: 10,
+    },
+    switchMode: {
+        alignItems: 'center',
+        marginVertical: 15,
+    },
+    switchModeText: {
+        color: '#0A3C97',
+        fontSize: 14,
+        fontWeight: '600',
     },
     resendText: {
-        textAlign: 'center',
         color: '#0A3C97',
         fontWeight: '600',
-        marginBottom: 12,
+        textAlign: 'center',
+        marginVertical: 10,
+        fontSize: 14,
+    },
+    disabledInput: {
+        backgroundColor: '#F0F0F0',
+        color: '#999999',
     },
 });
+
+export default ForgetScreen;

@@ -17,6 +17,9 @@ import CustomDrawer from '../components/CustomDrawer';
 import CustomHeader from '../components/CustomHeader';
 import PatientForm from '../screens/Patients';
 import PatientList from '../screens/PatientList';
+import AboutScreen from '../screens/AboutScreen';
+import ContactUsScreen from '../screens/ContactUsScreen';
+import LoadingScreen from '../screens/LoadingScreen';
 // import AppStack from './AppStack';
 
 const Drawer = createDrawerNavigator();
@@ -35,47 +38,83 @@ const AppDrawer = () => {
         drawerActiveTintColor: '#fff',
         drawerInactiveTintColor: '#333',
         drawerLabelStyle: {
-          marginLeft: -25,
+          // marginLeft: -25,
           fontFamily: 'Roboto-Medium',
           fontSize: 15,
         },
       }}>
       <Drawer.Screen
-        name="      Dashboard"
+        name="Dashboard"
         headerShown={false}
         component={Dashboard}
         options={{
           drawerIcon: ({ color }) => (
-            <Ionicons name="grid-outline" size={22} color={color} />
+            <Ionicons name="home-outline" size={22} color={color} />
           ),
         }}
       />
 
       <Drawer.Screen
-        name="      Patient List"
+        name="Patient List"
         headerShown={false}
         component={PatientList}
         options={{
           drawerIcon: ({ color }) => (
-            <Ionicons name="grid-outline" size={22} color={color} />
+            <Ionicons name="people-outline" size={22} color={color} />
           ),
         }}
       />
 
-      {/* <Drawer.Screen
-        name="Profile"
-        component={ProfileScreen}
+      <Drawer.Screen
+        name="Users (Assistance)"
+        component={PatientForm}
+        headerShown={false}
         options={{
-          drawerIcon: ({color}) => (
-            <Ionicons name="person-outline" size={22} color={color} />
+          drawerIcon: ({ color }) => (
+            <Ionicons name="person-add-outline" size={22} color={color} />
           ),
         }}
       />
+
       <Drawer.Screen
+        name="About"
+        component={AboutScreen}
+        headerShown={false}
+        options={{
+          drawerIcon: ({ color }) => (
+            <Ionicons name="information-circle-outline" size={22} color={color} />
+          ),
+        }}
+      />
+
+      <Drawer.Screen
+        name="Contact Us"
+        component={ContactUsScreen}
+        headerShown={false}
+        options={{
+          drawerIcon: ({ color }) => (
+            <Ionicons name="chatbubbles-outline" size={22} color={color} />
+          ),
+        }}
+      />
+
+      <Drawer.Screen
+        name="Loading"
+        component={LoadingScreen}
+        headerShown={false}
+        options={{
+          drawerIcon: ({ color }) => (
+            <Ionicons name="timer-outline" size={22} color={color} />
+          ),
+        }}
+      />
+
+
+      {/* <Drawer.Screen
         name="Messages"
         component={MessagesScreen}
         options={{
-          drawerIcon: ({color}) => (
+          drawerIcon: ({ color }) => (
             <Ionicons name="chatbox-ellipses-outline" size={22} color={color} />
           ),
         }}
@@ -84,7 +123,7 @@ const AppDrawer = () => {
         name="Moments"
         component={MomentsScreen}
         options={{
-          drawerIcon: ({color}) => (
+          drawerIcon: ({ color }) => (
             <Ionicons name="timer-outline" size={22} color={color} />
           ),
         }}
@@ -93,7 +132,7 @@ const AppDrawer = () => {
         name="Settings"
         component={SettingsScreen}
         options={{
-          drawerIcon: ({color}) => (
+          drawerIcon: ({ color }) => (
             <Ionicons name="settings-outline" size={22} color={color} />
           ),
         }}
