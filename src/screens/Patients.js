@@ -346,10 +346,14 @@ const PatientForm = () => {
       enabled
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={{ flex: 1 }}
+      // automaticallyAdjustKeyboardInsets={true}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
     >
       <ScrollView
         contentContainerStyle={styles.scrollContainer}
         keyboardShouldPersistTaps="handled"
+        // showsVerticalScrollIndicator={false}
+        // keyboardShouldPersistTaps="handled"
       >
         {/* ABDM ID Input */}
         <View style={styles.abdmContainer}>
@@ -661,6 +665,9 @@ const PatientForm = () => {
               style={[
                 styles.input,
                 editable ? styles.editableInput : styles.disabledInput,
+                {
+                  height: 100,
+                }
               ]}
               placeholder="Address"
               placeholderTextColor="#AAB6C3"
@@ -668,7 +675,9 @@ const PatientForm = () => {
               onChangeText={onChange}
               editable={editable}
               selectTextOnFocus={editable}
-              multiline
+              multiline={true}
+              numberOfLines={4}
+              textAlignVertical="top"
             />
           )}
         />

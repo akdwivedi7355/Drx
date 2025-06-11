@@ -9,11 +9,16 @@ import {
     StyleSheet,
     Alert,
     ScrollView,
+    Dimensions,
+    Animated,
+    KeyboardAvoidingView,
+    Platform,
 } from 'react-native';
 import { useDispatch } from 'react-redux';
 import { loginSuccess } from '../redux/authSlice';
 import { requestOtp, userAuthentication, verifyOtp } from '../api/api';
-
+import LinearGradient from 'react-native-linear-gradient';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 const LoginScreen = ({ onForgotPress }) => {
     const [useOtp, setUseOtp] = useState(false);
@@ -22,7 +27,17 @@ const LoginScreen = ({ onForgotPress }) => {
     const [input, setInput] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
+    const fadeAnim = useState(new Animated.Value(0))[0];
     const dispatch = useDispatch();
+
+    useEffect(() => {
+        Animated.timing(fadeAnim, {
+            toValue: 1,
+            duration: 1000,
+            useNativeDriver: true,
+        }).start();
+    }, [fadeAnim]);
 
     // Countdown timer effect
     useEffect(() => {
@@ -86,215 +101,278 @@ const LoginScreen = ({ onForgotPress }) => {
     };
 
     return (
-        <ScrollView contentContainerStyle={styles.scrollContainer}>
-            <View style={styles.containerBox}>
-                <Text style={styles.header}>Welcome Back 👨‍⚕️</Text>
-                <Text style={styles.subHeader}>Login Portal</Text>
+        <KeyboardAvoidingView 
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={styles.container}>
+            <ScrollView contentContainerStyle={styles.scrollContainer}>
+                <Animated.View style={[styles.containerBox, { opacity: fadeAnim }]}>
+                    <LinearGradient
+                        colors={['#1a237e', '#0A3C97', '#1565c0']}
+                        style={styles.headerGradient}>
+                        <Icon name="doctor" size={50} color="#fff" />
+                        <Text style={styles.header}>Welcome Back</Text>
+                        <Text style={styles.subHeader}>Login to Your Account</Text>
+                    </LinearGradient>
 
-                <TextInput
-                    placeholder="Enter your username, email, or mobile"
-                    value={input}
-                    onChangeText={setInput}
-                    style={[styles.input, otpSent && styles.disabledInput]}
-                    editable={!otpSent}
-                />
-
-                {useOtp ? (
-                    <>
-                        {otpSent && (
+                    <View style={styles.formContainer}>
+                        <View style={styles.inputContainer}>
+                            <Icon name="account" size={24} color="#0A3C97" style={styles.inputIcon} />
                             <TextInput
-                                placeholder="Enter OTP"
-                                value={password}
-                                onChangeText={setPassword}
-                                keyboardType="number-pad"
-                                secureTextEntry
-                                style={styles.input}
+                                placeholder="Username, Email, or Mobile"
+                                placeholderTextColor="#666"
+                                value={input}
+                                onChangeText={setInput}
+                                style={[styles.input, otpSent && styles.disabledInput]}
+                                editable={!otpSent}
                             />
-                        )}
-                        {!otpSent ? (
-                            <TouchableOpacity style={styles.otpButton} onPress={handleSendOtp}>
-                                <Text style={styles.otpButtonText}>Send OTP</Text>
-                            </TouchableOpacity>
-                        ) : timer > 0 ? (
-                            <Text style={styles.timerText}>Resend in {timer}s</Text>
+                        </View>
+
+                        {useOtp ? (
+                            <>
+                                {otpSent && (
+                                    <View style={styles.inputContainer}>
+                                        <Icon name="lock-outline" size={24} color="#0A3C97" style={styles.inputIcon} />
+                                        <TextInput
+                                            placeholder="Enter OTP"
+                                            value={password}
+                                            onChangeText={setPassword}
+                                            keyboardType="number-pad"
+                                            secureTextEntry
+                                            style={styles.input}
+                                            placeholderTextColor="#666"
+                                        />
+                                    </View>
+                                )}
+                                {!otpSent ? (
+                                    <TouchableOpacity 
+                                        style={styles.gradientButton} 
+                                        onPress={handleSendOtp}>
+                                        <LinearGradient
+                                            colors={['#1a237e', '#0A3C97']}
+                                            style={styles.gradient}>
+                                            <Text style={styles.buttonText}>Send OTP</Text>
+                                        </LinearGradient>
+                                    </TouchableOpacity>
+                                ) : timer > 0 ? (
+                                    <Text style={styles.timerText}>Resend in {timer}s</Text>
+                                ) : (
+                                    <TouchableOpacity onPress={handleSendOtp}>
+                                        <Text style={styles.resendText}>Resend OTP</Text>
+                                    </TouchableOpacity>
+                                )}
+                            </>
                         ) : (
-                            <TouchableOpacity onPress={handleSendOtp}>
-                                <Text style={styles.resendText}>Resend OTP</Text>
+                            <View style={styles.inputContainer}>
+                                <Icon name="lock-outline" size={24} color="#0A3C97" style={styles.inputIcon} />
+                                <TextInput
+                                    placeholder="Password"
+                                    value={password}
+                                    onChangeText={setPassword}
+                                    secureTextEntry={!showPassword}
+                                    style={styles.input}
+                                    placeholderTextColor="#666"
+                                />
+                                <TouchableOpacity 
+                                    onPress={() => setShowPassword(!showPassword)}
+                                    style={styles.eyeIcon}>
+                                    <Icon 
+                                        name={showPassword ? "eye-off" : "eye"} 
+                                        size={24} 
+                                        color="#0A3C97" 
+                                    />
+                                </TouchableOpacity>
+                            </View>
+                        )}
+
+                        {(useOtp ? otpSent : true) && (
+                            <TouchableOpacity
+                                style={[styles.gradientButton, loading && { opacity: 0.6 }]}
+                                onPress={handleLogin}
+                                disabled={loading}>
+                                <LinearGradient
+                                    colors={['#1a237e', '#0A3C97']}
+                                    style={styles.gradient}>
+                                    <Text style={styles.buttonText}>
+                                        {loading
+                                            ? useOtp
+                                                ? 'Verifying OTP...'
+                                                : 'Logging in...'
+                                            : useOtp
+                                                ? 'Verify OTP'
+                                                : 'Login'}
+                                    </Text>
+                                </LinearGradient>
                             </TouchableOpacity>
                         )}
-                    </>
-                ) : (
-                    <TextInput
-                        placeholder="Enter Password"
-                        value={password}
-                        onChangeText={setPassword}
-                        secureTextEntry
-                        style={styles.input}
-                    />
-                )}
 
-                {(useOtp ? otpSent : true) && (
-                    <TouchableOpacity
-                        style={[styles.loginButton, loading && { opacity: 0.6 }]}
-                        onPress={handleLogin}
-                        disabled={loading}
-                    >
-                        <Text style={styles.loginButtonText}>
-                            {loading
-                                ? useOtp
-                                    ? 'Verifying OTP...'
-                                    : 'Logging in...'
-                                : useOtp
-                                    ? 'Verify OTP'
-                                    : 'Login'}
-                        </Text>
-                    </TouchableOpacity>
-                )}
+                        <TouchableOpacity
+                            onPress={() => {
+                                setUseOtp(prev => !prev);
+                                setOtpSent(false);
+                                setTimer(0);
+                                setPassword('');
+                            }}
+                            style={styles.switchMode}>
+                            <Text style={styles.switchModeText}>
+                                {useOtp ? 'Use Password Instead' : 'Use OTP Instead'}
+                            </Text>
+                        </TouchableOpacity>
 
-                <TouchableOpacity
-                    onPress={() => {
-                        setUseOtp(prev => !prev);
-                        setOtpSent(false);
-                        setTimer(0);
-                        setPassword('');
-                    }}
-                    style={styles.switchMode}
-                >
-                    <Text style={styles.switchModeText}>
-                        {useOtp ? 'Use Password Instead' : 'Use OTP Instead'}
-                    </Text>
-                </TouchableOpacity>
-
-
-
-
-                <View style={styles.registerContainer}>
-                    <TouchableOpacity onPress={onForgotPress}>
-                        <Text style={{ color: '#0A3C97', fontWeight: '600', alignSelf: 'left', textDecorationLine: 'underline' }}>
-                            Forgot Password?
-                        </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        style={{ flexDirection: 'row', alignItems: 'center' }}
-                        onPress={() => Alert.alert('Register', 'Registration feature coming soon!')}
-                    >
-                        <Text style={styles.registerPrompt}>New here?</Text>
-                        <Text style={styles.registerText}> Register</Text>
-                    </TouchableOpacity>
-
-                </View>
-            </View>
-        </ScrollView>
+                        <View style={styles.registerContainer}>
+                            <TouchableOpacity onPress={onForgotPress}>
+                                <Text style={styles.forgotText}>Forgot Password?</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={styles.registerButton}
+                                onPress={() => Alert.alert('Register', 'Registration feature coming soon!')}>
+                                <Text style={styles.registerPrompt}>New here?</Text>
+                                <Text style={styles.registerText}> Register</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </Animated.View>
+            </ScrollView>
+        </KeyboardAvoidingView>
     );
 };
 
 export default LoginScreen;
 
-
-
+const { width } = Dimensions.get('window');
 const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: '#f5f6fa',
+    },
     scrollContainer: {
         flexGrow: 1,
         justifyContent: 'center',
         padding: 20,
-        backgroundColor: '#E8ECF4',
     },
     containerBox: {
         backgroundColor: '#FFFFFF',
-        padding: 25,
-        borderRadius: 15,
+        borderRadius: 20,
         width: '100%',
         maxWidth: 450,
         alignSelf: 'center',
-        elevation: 4,
+        elevation: 5,
         shadowColor: '#000',
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 15,
+        shadowOffset: { width: 0, height: 5 },
+        overflow: 'hidden',
+    },
+    headerGradient: {
+        padding: 30,
+        alignItems: 'center',
+    },
+    formContainer: {
+        padding: 25,
     },
     header: {
-        fontSize: 26,
+        fontSize: 28,
         fontWeight: '700',
-        color: '#0A3C97',
-        textAlign: 'center',
+        color: '#FFFFFF',
+        marginTop: 15,
     },
     subHeader: {
-        fontSize: 14,
-        color: '#335589',
-        textAlign: 'center',
-        marginBottom: 20,
+        fontSize: 16,
+        color: '#E8ECF4',
+        marginTop: 5,
+    },
+    inputContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#F5F6FA',
+        borderRadius: 12,
+        marginBottom: 16,
+        borderWidth: 1,
+        borderColor: '#E8ECF4',
+    },
+    inputIcon: {
+        padding: 10,
+        marginLeft: 5,
     },
     input: {
-        borderWidth: 1,
-        borderColor: '#264487',
-        borderRadius: 10,
-        padding: 12,
-        marginBottom: 12,
-        backgroundColor: '#FFFFFF',
-        color: '#0A3C97',
+        flex: 1,
+        padding: 15,
+        fontSize: 16,
+        color: '#333',
     },
-    otpButton: {
-        backgroundColor: '#335589',
-        padding: 12,
-        borderRadius: 8,
+    eyeIcon: {
+        padding: 10,
+    },
+    gradientButton: {
+        borderRadius: 12,
+        marginVertical: 10,
+        elevation: 2,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 3.84,
+    },
+    gradient: {
+        paddingVertical: 15,
+        borderRadius: 12,
         alignItems: 'center',
-        marginBottom: 12,
     },
-    otpButtonText: {
+    buttonText: {
         color: '#FFFFFF',
+        fontSize: 16,
         fontWeight: '600',
     },
     timerText: {
         textAlign: 'center',
-        color: '#335589',
+        color: '#0A3C97',
+        fontSize: 14,
         fontWeight: '600',
-        marginBottom: 12,
-    },
-    loginButton: {
-        backgroundColor: '#0A3C97',
-        padding: 14,
-        borderRadius: 10,
-        alignItems: 'center',
         marginVertical: 10,
-    },
-    loginButtonText: {
-        color: '#FFFFFF',
-        fontWeight: '700',
-        fontSize: 16,
     },
     switchMode: {
         alignItems: 'center',
-        marginVertical: 6,
+        marginVertical: 15,
     },
     switchModeText: {
-        color: '#264487',
-        fontWeight: '500',
+        color: '#0A3C97',
+        fontSize: 14,
+        fontWeight: '600',
     },
     registerContainer: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        marginTop: 14,
-
+        alignItems: 'center',
+        marginTop: 20,
+    },
+    forgotText: {
+        color: '#0A3C97',
+        fontWeight: '600',
+        fontSize: 14,
+        textDecorationLine: 'underline',
+    },
+    registerButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
     },
     registerPrompt: {
-        color: '#335589',
+        color: '#666',
+        fontSize: 14,
     },
     registerText: {
         color: '#0A3C97',
         fontWeight: '600',
+        fontSize: 14,
     },
     resendText: {
         color: '#0A3C97',
         fontWeight: '600',
         textAlign: 'center',
-        marginBottom: 12,
+        marginVertical: 10,
+        fontSize: 14,
     },
     disabledInput: {
         backgroundColor: '#F0F0F0',
         color: '#999999',
-        borderColor: '#CCCCCC',
     },
-
 });
 
 
