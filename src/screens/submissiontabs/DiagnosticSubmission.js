@@ -11,6 +11,7 @@ import {
     ActivityIndicator,
     SafeAreaView,
     Text,
+    Dimensions,
 } from 'react-native';
 import DocumentScanner from 'react-native-document-scanner-plugin';
 import RNHTMLtoPDF from 'react-native-html-to-pdf';
@@ -18,6 +19,10 @@ import RNFS from 'react-native-fs';
 import ImageResizer from 'react-native-image-resizer';
 import { getUserDefaultDetails, SaveDiagnosticReport } from '../../api/api';
 import { useNavigation } from '@react-navigation/native';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import LinearGradient from 'react-native-linear-gradient';
+
+const { width } = Dimensions.get('window');
 
 const DiagnosticSubmission = ({ route }) => {
     const [scannedImages, setScannedImages] = useState([]);
@@ -26,6 +31,7 @@ const DiagnosticSubmission = ({ route }) => {
     const [patientID, setPatientID] = useState('');
     const Patient = route.params?.patient || {};
     // Add more as needed
+
     const navigation = useNavigation();
 
     useEffect(() => {
@@ -61,16 +67,20 @@ const DiagnosticSubmission = ({ route }) => {
         }
 
         try {
-            const { scannedImages } = await DocumentScanner.scanDocument({
+            const { scannedImages: newImages } = await DocumentScanner.scanDocument({
                 croppedImageQuality: 10,
             });
 
-            if (scannedImages.length > 0) {
-                setScannedImages(scannedImages);
+            if (newImages.length > 0) {
+                setScannedImages(prev => [...prev, ...newImages]);
             }
         } catch (error) {
             console.error('Scan error:', error);
         }
+    };
+
+    const removeImage = (indexToRemove) => {
+        setScannedImages(prev => prev.filter((_, index) => index !== indexToRemove));
     };
 
     const convertImagesToPDFBase64 = async (images) => {
@@ -212,10 +222,9 @@ const DiagnosticSubmission = ({ route }) => {
                 Alert.alert('Error', 'Failed to save patient data.');
                 return;
             }
-
             Alert.alert('Success', 'PDF submitted successfully.');
-            handleclear();
-            navigation.goBack(); // Navigate back after successful submission
+            handleClear(); // Clear images after successful submission
+            navigation.goBack();
         } catch (error) {
             console.error('Submission error:', error);
             Alert.alert('Error', 'Failed to submit PDF.');
@@ -224,85 +233,257 @@ const DiagnosticSubmission = ({ route }) => {
         }
     };
 
-    const handleclear = () => {
+    const handleClear = () => {
         setScannedImages([]);
     }
 
-
-
+    const renderEmptyState = () => (
+        <View style={styles.emptyStateContainer}>
+            <Icon name="file-document-outline" size={80} color="#0A3C97" />
+            <Text style={styles.emptyStateTitle}>No Documents Yet</Text>
+            <Text style={styles.emptyStateSubtitle}>
+                Tap the scan button below to start scanning diagnostic reports
+            </Text>
+        </View>
+    );
 
     return (
         <SafeAreaView style={styles.container}>
-            <ScrollView contentContainerStyle={styles.imageContainer}>
-                {scannedImages.map((uri, index) => (
-                    <Image
-                        key={index}
-                        source={{ uri }}
-                        style={styles.image}
-                        resizeMode="contain"
-                    />
-                ))}
-                {isProcessing && <ActivityIndicator size="large" color="#007AFF" />}
+            <ScrollView 
+                style={styles.content}
+                contentContainerStyle={[
+                    styles.scrollContent,
+                    scannedImages.length === 0 && styles.centerContent
+                ]}
+            >
+                {scannedImages.length === 0 ? (
+                    renderEmptyState()
+                ) : (
+                    <View style={styles.imageGrid}>
+                        {scannedImages.map((uri, index) => (
+                            <View key={index} style={styles.imageCard}>
+                                <Image
+                                    source={{ uri }}
+                                    style={styles.image}
+                                    resizeMode="cover"
+                                />
+                                <TouchableOpacity 
+                                    style={styles.removeButton}
+                                    onPress={() => removeImage(index)}
+                                >
+                                    <Text style={styles.removeButtonText}>×</Text>
+                                </TouchableOpacity>
+                                <View style={styles.pageNumberContainer}>
+                                    <Text style={styles.pageNumber}>Page {index + 1}</Text>
+                                </View>
+                            </View>
+                        ))}
+                    </View>
+                )}
             </ScrollView>
 
+            {isProcessing && (
+                <View style={styles.loadingOverlay}>
+                    <ActivityIndicator size="large" color="#0A3C97" />
+                    <Text style={styles.loadingText}>Processing...</Text>
+                </View>
+            )}
+
             <View style={styles.footer}>
-                <TouchableOpacity style={styles.button} onPress={scanDocument}>
-                    <Text style={styles.buttonText}>Scan</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    onPress={() => {
-                        console.log('Pressed submit');
-                        handleSubmit();
-                    }}
-                    style={styles.button}
+                <TouchableOpacity 
+                    style={[styles.button, styles.scanButton]} 
+                    onPress={scanDocument}
                 >
-                    <Text style={styles.buttonText}>Submit</Text>
+                    <Text style={styles.buttonText}>
+                        {scannedImages.length === 0 ? 'Scan Document' : 'Scan More'}
+                    </Text>
                 </TouchableOpacity>
 
+                {scannedImages.length > 0 && (
+                    <>
+                        <TouchableOpacity 
+                            style={[styles.button, styles.clearButton]} 
+                            onPress={handleClear}
+                        >
+                            <Text style={[styles.buttonText, styles.clearButtonText]}>
+                                Clear All
+                            </Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity 
+                            style={[styles.button, styles.submitButton]} 
+                            onPress={handleSubmit}
+                        >
+                            <Text style={styles.buttonText}>Submit</Text>
+                        </TouchableOpacity>
+                    </>
+                )}
             </View>
         </SafeAreaView>
     );
 };
 
-export default DiagnosticSubmission;
-
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#fff',
+        backgroundColor: '#F9FAFB',
+        marginBottom: 20,
     },
-    imageContainer: {
-        padding: 10,
+    header: {
+        backgroundColor: '#0A3C97',
+        padding: 16,
+        elevation: 4,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 4,
+    },
+    headerTitle: {
+        fontSize: 20,
+        fontWeight: '600',
+        color: '#FFFFFF',
+        marginBottom: 4,
+    },
+    patientInfo: {
+        fontSize: 14,
+        color: '#E0E7FF',
+    },
+    content: {
+        flex: 1,
+    },
+    scrollContent: {
+        padding: 16,
+        paddingBottom: 80,
+    },
+    centerContent: {
+        flexGrow: 1,
+        justifyContent: 'center',
+    },
+    emptyStateContainer: {
         alignItems: 'center',
+        justifyContent: 'center',
+        padding: 20,
+    },
+    emptyStateTitle: {
+        fontSize: 20,
+        fontWeight: '600',
+        color: '#0A3C97',
+        marginTop: 16,
+        marginBottom: 8,
+    },
+    emptyStateSubtitle: {
+        fontSize: 14,
+        color: '#6B7280',
+        textAlign: 'center',
+        maxWidth: 250,
+    },
+    imageGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        justifyContent: 'space-between',
+        gap: 12,
+    },
+    imageCard: {
+        width: (width - 44) / 2,
+        height: (width - 44) / 2 * 1.4,
+        borderRadius: 12,
+        overflow: 'hidden',
+        backgroundColor: '#FFFFFF',
+        elevation: 3,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 3,
+        position: 'relative',
     },
     image: {
         width: '100%',
-        height: 300,
-        marginVertical: 10,
-        borderRadius: 10,
+        height: '100%',
+    },
+    removeButton: {
+        position: 'absolute',
+        top: 8,
+        right: 8,
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        backgroundColor: 'rgba(255, 68, 68, 0.9)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    removeButtonText: {
+        color: '#FFFFFF',
+        fontSize: 18,
+        fontWeight: 'bold',
+        lineHeight: 24,
+    },
+    pageNumberContainer: {
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        padding: 8,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    },
+    pageNumber: {
+        color: '#FFFFFF',
+        fontSize: 12,
+        fontWeight: '500',
+        textAlign: 'center',
+    },
+    loadingOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 999,
+    },
+    loadingText: {
+        marginTop: 12,
+        fontSize: 16,
+        color: '#0A3C97',
+        fontWeight: '500',
     },
     footer: {
         flexDirection: 'row',
-        justifyContent: 'space-around',
-        padding: 15,
-        backgroundColor: '#f8f8f8',
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        backgroundColor: '#FFFFFF',
         borderTopWidth: 1,
-        borderColor: '#ddd',
+        borderTopColor: '#E5E7EB',
+        gap: 6,
     },
     button: {
         flex: 1,
-        backgroundColor: '#007AFF',
-        paddingVertical: 14,
-        marginHorizontal: 8,
-        borderRadius: 8,
         alignItems: 'center',
-    },
-    submitButton: {
-        backgroundColor: '#28a745',
+        justifyContent: 'center',
+        padding: 10,
+        borderRadius: 6,
+        minHeight: 40,
     },
     buttonText: {
-        color: '#fff',
-        fontWeight: 'bold',
-        fontSize: 16,
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#FFFFFF',
+    },
+    scanButton: {
+        backgroundColor: '#0A3C97',
+        flex: 1.5,
+    },
+    submitButton: {
+        backgroundColor: '#059669',
+        flex: 1,
+    },
+    clearButton: {
+        backgroundColor: '#FFF1F1',
+        borderWidth: 1,
+        borderColor: '#FF4444',
+        flex: 1,
+    },
+    clearButtonText: {
+        color: '#FF4444',
+        fontSize: 13,
     },
 });
+
+export default DiagnosticSubmission;

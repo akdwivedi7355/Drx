@@ -452,3 +452,19 @@ export const saveMedicalBillReort = async (patientData) => {
   const headers = { u: creds.u };
   return await post('/SaveSaleBill', payload, headers);
 }
+
+
+
+export const PatientHistoryData = async (patientData) => {
+  const creds = await getFromAsyncStorage('auth_credentials');
+  if (!creds) {
+    return { status: false, errorMessage: 'No stored credentials' };
+  }
+  const payload = {
+    uhid: patientData.uhid,
+    hiType: patientData.hiType || 0
+  };
+ 
+  const headers = { u: creds.u };
+  return await post('/PatientHistory', payload, headers);
+}

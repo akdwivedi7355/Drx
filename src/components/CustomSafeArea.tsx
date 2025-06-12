@@ -7,7 +7,7 @@ interface CustomSafeAreaProps {
     children: ReactNode;
     backgroundColor?: string;
     style?: ViewStyle;
-    statusBarColor?: 'light-content' | 'dark-content';
+    statusBarColor?: 'dark-content' | 'dark-content';
     translucent?: boolean;
 }
 

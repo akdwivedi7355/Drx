@@ -3,7 +3,6 @@ import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
-  Image,
   TouchableOpacity,
   ActivityIndicator,
   Alert,
@@ -26,12 +25,12 @@ const THEME_COLORS = {
   primary: '#2563EB',
   secondary: '#3B82F6',
   accent: '#60A5FA',
-  background: '#F8FAFC',
+  background: '#F1F5F9',
   surface: '#FFFFFF',
   text: '#1E293B',
   textSecondary: '#64748B',
   border: '#E2E8F0',
-  error: '#EF4444',
+  error: '#DC2626',
 };
 
 const CustomDrawer = props => {
@@ -80,49 +79,51 @@ const CustomDrawer = props => {
         {...props}
         contentContainerStyle={styles.drawerContent}
         showsVerticalScrollIndicator={false}>
-        <LinearGradient
-          // colors={[THEME_COLORS.primary, THEME_COLORS.secondary]}
-         colors={['#2563EB', '#3B82F6']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.profileSection}>
-          <View style={styles.profileHeader}>
-            <View style={styles.profileImageWrapper}>
-              <View style={styles.profileImageContainer}>
-                <Image
-                  source={require('../assets/images/user-profile.jpg')}
-                  style={styles.profileImage}
-                />
+        <View style={styles.headerSection}>
+          <LinearGradient
+            colors={['#0A3C97', '#3B82F6']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={[styles.headerGradient, { borderRadius : 12, height: 180 }]}
+          />
+          <View style={styles.profileCard}>
+            <View style={styles.profileHeader}>
+              <View style={styles.avatarSection}>
+                <View style={styles.avatarContainer}>
+                  <Ionicons name="person" size={32} color={THEME_COLORS.primary} />
+                </View>
+                {loading ? (
+                  <ActivityIndicator size="small" color={THEME_COLORS.primary} />
+                ) : (
+                  <Text style={styles.userName}>
+                    {userData?.userName || 'No Name'}
+                  </Text>
+                )}
               </View>
-            </View>
-            {loading ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <View style={styles.userInfo}>
-                <Text style={styles.userName}>
-                  {userData?.userName || 'No Name'}
-                </Text>
-                <Text style={styles.userEmail}>
-                  {userData?.userEmail || 'No Email'}
-                </Text>
-                <View style={styles.consultantBadge}>
-                  <Ionicons name="medical" size={14} color="#fff" />
+              <View style={styles.userDetails}>
+                <View style={styles.detailRow}>
+                  <Ionicons name="mail-outline" size={16} color={THEME_COLORS.textSecondary} />
+                  <Text style={styles.userEmail}>
+                    {userData?.userEmail || 'No Email'}
+                  </Text>
+                </View>
+                <View style={styles.detailRow}>
+                  <Ionicons name="medical-outline" size={16} color={THEME_COLORS.textSecondary} />
                   <Text style={styles.consultantText}>
                     {userData?.userLinkedConsultantName || 'N/A'}
                   </Text>
                 </View>
               </View>
-            )}
+            </View>
           </View>
-        </LinearGradient>
-        
+        </View>
 
-        <View style={styles.menuContainer}>
+        <View style={styles.menuSection}>
           <DrawerItemList 
             {...props}
             activeTintColor={THEME_COLORS.primary}
             inactiveTintColor={THEME_COLORS.textSecondary}
-            activeBackgroundColor={`${THEME_COLORS.primary}15`}
+            activeBackgroundColor={`${THEME_COLORS.primary}08`}
             itemStyle={styles.menuItem}
             labelStyle={styles.menuLabel}
           />
@@ -130,19 +131,18 @@ const CustomDrawer = props => {
       </DrawerContentScrollView>
 
       <View style={styles.bottomSection}>
-       
         <TouchableOpacity
           onPress={handleSignOut}
-          style={[styles.bottomButton, styles.signOutButton, { marginLeft: 10 }]}>
+          style={styles.signOutButton}>
           <View style={styles.buttonContent}>
-            <View style={[styles.iconContainer, styles.signOutIcon]}>
+            <View style={styles.signOutIcon}>
               <Ionicons 
-                name="exit-outline" 
+                name="log-out-outline" 
                 size={20} 
                 color={THEME_COLORS.error}
               />
             </View>
-            <Text style={[styles.bottomButtonText, styles.signOutText]}>
+            <Text style={styles.signOutText}>
               Sign Out
             </Text>
           </View>
@@ -160,69 +160,79 @@ const styles = StyleSheet.create({
   drawerContent: {
     padding: 0,
   },
-  profileSection: {
-    paddingTop: 10,
-    paddingBottom: 10,
-    // borderBottomRightRadius: 24,
-    borderRadius: 24,
+  headerSection: {
+    height: 180,
+    position: 'relative',
+    // width: '100%',
+  },
+  headerGradient: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 120,
+  },
+  profileCard: {
+    backgroundColor: THEME_COLORS.surface,
+    marginHorizontal: 16,
+    marginTop: 20,
+    borderRadius: 12,
+    padding: 16,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
   },
   profileHeader: {
-    paddingHorizontal: 16,
+    gap: 10,
   },
-  profileImageWrapper: {
-    alignItems: 'center',
-    // marginBottom: 16,
-  },
-  profileImageContainer: {
-    padding: 3,
-    borderRadius: 50,
-    backgroundColor: 'rgba(228, 15, 15, 0.2)',
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.5)',
-  },
-  profileImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-  },
-  userInfo: {
-    alignItems: 'center',
-  },
-  userName: {
-    color: '#fff',
-    fontSize: 20,
-    fontFamily: 'Roboto-Medium',
-    marginBottom: 4,
-  },
-  userEmail: {
-    color: 'rgba(255, 255, 255, 0.9)',
-    fontSize: 14,
-    fontFamily: 'Roboto-Regular',
-    marginBottom: 12,
-  },
-  consultantBadge: {
+  avatarSection: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    marginTop: 4,
+    gap: 12,
+  },
+  avatarContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: `${THEME_COLORS.primary}08`,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: `${THEME_COLORS.primary}20`,
+  },
+  userName: {
+    fontSize: 18,
+    fontFamily: 'Roboto-Medium',
+    color: THEME_COLORS.text,
+  },
+  userDetails: {
+    gap: 8,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  userEmail: {
+    fontSize: 14,
+    fontFamily: 'Roboto-Regular',
+    color: THEME_COLORS.textSecondary,
   },
   consultantText: {
-    color: '#fff',
-    fontSize: 13,
+    fontSize: 14,
     fontFamily: 'Roboto-Regular',
-    marginLeft: 6,
+    color: THEME_COLORS.textSecondary,
   },
-  menuContainer: {
+  menuSection: {
     flex: 1,
-    paddingTop: 12,
-    paddingHorizontal: 8,
+    paddingTop: 8,
+    paddingHorizontal: 12,
     // backgroundColor: THEME_COLORS.surface,
   },
   menuItem: {
-    borderRadius: 12,
+    borderRadius: 8,
     marginVertical: 2,
     paddingVertical: 4,
   },
@@ -236,34 +246,28 @@ const styles = StyleSheet.create({
     borderTopColor: THEME_COLORS.border,
     backgroundColor: THEME_COLORS.surface,
   },
-  bottomButton: {
+  signOutButton: {
     paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: `${THEME_COLORS.error}08`,
   },
   buttonContent: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 12,
   },
-  iconContainer: {
+  signOutIcon: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: `${THEME_COLORS.primary}15`,
+    backgroundColor: `${THEME_COLORS.error}12`,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
-  },
-  signOutIcon: {
-    backgroundColor: `${THEME_COLORS.error}15`,
-  },
-  bottomButtonText: {
-    fontSize: 15,
-    fontFamily: 'Roboto-Medium',
-    color: THEME_COLORS.text,
-  },
-  signOutButton: {
-    marginTop: 8,
   },
   signOutText: {
+    fontSize: 15,
+    fontFamily: 'Roboto-Medium',
     color: THEME_COLORS.error,
   },
 });

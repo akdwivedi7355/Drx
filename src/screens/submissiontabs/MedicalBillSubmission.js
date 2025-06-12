@@ -336,6 +336,7 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#F9FAFB',
+        marginBottom: 20,
     },
     header: {
         backgroundColor: '#0A3C97',
@@ -453,38 +454,43 @@ const styles = StyleSheet.create({
     },
     footer: {
         flexDirection: 'row',
-        padding: 16,
+        paddingHorizontal: 12,
+        paddingVertical: 10,
         backgroundColor: '#FFFFFF',
         borderTopWidth: 1,
         borderTopColor: '#E5E7EB',
-        gap: 8,
+        gap: 6,
     },
     button: {
         flex: 1,
         alignItems: 'center',
         justifyContent: 'center',
-        padding: 14,
-        borderRadius: 8,
+        padding: 10,
+        borderRadius: 6,
+        minHeight: 40,
     },
     buttonText: {
-        fontSize: 16,
+        fontSize: 14,
         fontWeight: '600',
         color: '#FFFFFF',
     },
     scanButton: {
         backgroundColor: '#0A3C97',
-        flex: 2,
+        flex: 1.5,
     },
     submitButton: {
         backgroundColor: '#059669',
         flex: 1,
     },
     clearButton: {
-        backgroundColor: '#FEE2E2',
+        backgroundColor: '#FFF1F1',
+        borderWidth: 1,
+        borderColor: '#FF4444',
         flex: 1,
     },
     clearButtonText: {
         color: '#FF4444',
+        fontSize: 13,
     },
 });
 

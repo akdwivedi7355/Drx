@@ -15,6 +15,8 @@ import {
   ScrollView,
   Alert,
   Keyboard,
+  Modal,
+  Pressable,
 } from 'react-native';
 import { useForm, Controller } from 'react-hook-form';
 import DateTimePicker from 'react-native-date-picker';
@@ -22,7 +24,8 @@ import { Picker } from '@react-native-picker/picker';
 import Icon from 'react-native-vector-icons/Ionicons';
 import ABHAModal from './Abhamodal';
 import { useNavigation } from '@react-navigation/native';
-import { AddPatients, getStoredDefaultConsultant, getUserDefaultDetails, verifyAbdmStatus } from '../api/api';
+import { AddPatients, getStoredDefaultConsultant, getUserDefaultDetails, verifyAbdmStatus, getdefaultconsultant } from '../api/api';
+import LinearGradient from 'react-native-linear-gradient';
 
 const PatientForm = () => {
   const { control, handleSubmit, setValue, watch, reset } = useForm();
@@ -33,9 +36,40 @@ const PatientForm = () => {
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const [editable, setEditable] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [doctors, setDoctors] = useState([]);
+  const [selectedDoctor, setSelectedDoctor] = useState(null);
+  const [modalVisible, setModalVisible] = useState(false);
   const navigation = useNavigation();
 
+  useEffect(() => {
+    const fetchDefaultDoctor = async () => {
+      try {
+        const res = await getUserDefaultDetails();
+        const defaultres = {
+          consultantCode: res.data.userLinkedConsultantCode,
+          consultantName: res.data.userLinkedConsultantName,
+          consultantInitial: 'Dr.',
+        };
+        setSelectedDoctor(defaultres);
+      } catch (err) {
+        console.error('Error fetching default doctor:', err);
+      }
+    };
 
+    const fetchDoctors = async () => {
+      try {
+        const res = await getdefaultconsultant();
+        if (res.status && res.data) {
+          setDoctors(res.data);
+        }
+      } catch (err) {
+        console.error('Error fetching doctors:', err);
+      }
+    };
+
+    fetchDefaultDoctor();
+    fetchDoctors();
+  }, []);
 
   useEffect(() => {
     const showSubscription = Keyboard.addListener('keyboardDidShow', () => {
@@ -287,6 +321,10 @@ const PatientForm = () => {
     return `${day}-${monthName}-${year}`;
   };
 
+  const handleDoctorChange = (doctorCode) => {
+    const doctor = doctors.find(d => d.consultantCode === doctorCode);
+    setSelectedDoctor(doctor);
+  };
 
   const onSubmit = async (data) => {
     if (!data.firstName || !data.lastName || !data.dob || !data.mobile) {
@@ -294,20 +332,22 @@ const PatientForm = () => {
       return;
     }
 
-    setLoading(true); // 🔵 START loading
+    if (!selectedDoctor) {
+      Alert.alert('Error', 'Please select a consultant');
+      return;
+    }
+
+    setLoading(true);
 
     try {
-      const consultant = await getUserDefaultDetails();
-
       if (!data.name) {
         data.name = `${data.firstName} ${data.middleName || ''} ${data.lastName}`.trim();
       } else {
         data.name = data.name.trim();
       }
 
-
       const patientdata = {
-        consultantCode: consultant?.data?.userLinkedConsultantCode,
+        consultantCode: selectedDoctor.consultantCode,
         patientPrefix: data.patientPrefix,
         patientFirstName: data.firstName,
         patientMiddleName: data.middleName,
@@ -341,379 +381,502 @@ const PatientForm = () => {
     }
   };
 
+  const renderDoctorModal = () => {
+    return (
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={modalVisible}
+        onRequestClose={() => setModalVisible(false)}>
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setModalVisible(false)}>
+          <View style={styles.modalContainer}>
+            <TouchableOpacity 
+              activeOpacity={1} 
+              style={styles.modalContent}
+              onPress={e => e.stopPropagation()}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Select Doctor</Text>
+                <TouchableOpacity 
+                  onPress={() => setModalVisible(false)}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                  <Icon name="close" size={24} color="#000" />
+                </TouchableOpacity>
+              </View>
+              <ScrollView>
+                {doctors.map((doctor) => (
+                  <TouchableOpacity
+                    key={doctor.consultantCode}
+                    style={[
+                      styles.doctorItem,
+                      selectedDoctor?.consultantCode === doctor.consultantCode && styles.selectedDoctor,
+                    ]}
+                    onPress={() => {
+                      setSelectedDoctor(doctor);
+                      setModalVisible(false);
+                    }}>
+                    <Text style={[
+                      styles.doctorName,
+                      selectedDoctor?.consultantCode === doctor.consultantCode && styles.selectedDoctorText,
+                    ]}>
+                      {doctor.consultantInitial} {doctor.consultantName}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+    );
+  };
+
   return (
-    <KeyboardAvoidingView
-      enabled
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={{ flex: 1 }}
-      // automaticallyAdjustKeyboardInsets={true}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
-    >
-      <ScrollView
-        contentContainerStyle={styles.scrollContainer}
-        keyboardShouldPersistTaps="handled"
-        // showsVerticalScrollIndicator={false}
-        // keyboardShouldPersistTaps="handled"
-      >
-        {/* ABDM ID Input */}
-        <View style={styles.abdmContainer}>
-          <TextInput
-            style={styles.abdmInput}
-            placeholder="Enter ABHA address or Number"
-            value={abdmID}
-            onChangeText={setAbdmID}
-            onBlur={handleABDMSearch}
-          />
-          {/* <Text style={styles.fixedText}>@abdm</Text> */}
-          <TouchableOpacity onPress={handleABDMSearch}>
-            <Icon name="search" size={24} color="black" />
+    <View style={styles.container}>
+      {/* Doctor Selection Header */}
+      <View style={styles.headerContainer}>
+        <LinearGradient
+          colors={['#0A3C97', '#3B82F6']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={styles.headerGradient}>
+          <TouchableOpacity
+            style={styles.doctorSelectorHeader}
+            onPress={() => setModalVisible(true)}>
+            <View style={styles.doctorInfoHeader}>
+              <Text style={styles.doctorLabelHeader}>Doctor</Text>
+              <Text style={styles.doctorNameHeader} numberOfLines={1}>
+                {selectedDoctor
+                  ? `${selectedDoctor.consultantInitial} ${selectedDoctor.consultantName}`
+                  : 'Select Doctor'}
+              </Text>
+            </View>
+            <View style={styles.iconContainer}>
+              <Icon name="chevron-down" size={18} color="#FFFFFF" />
+            </View>
           </TouchableOpacity>
-        </View>
+        </LinearGradient>
+      </View>
 
-        <View style={styles.abhaContainer}>
-          <Text style={styles.abhaText}>Want to verify ABHA?</Text>
-          <TouchableOpacity onPress={() => setmodelVisible(true)}>
-            <Text style={styles.verifyAbha}> Verify ABHA</Text>
-          </TouchableOpacity>
-        </View>
+      <KeyboardAvoidingView
+        enabled
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardView}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContainer}
+          keyboardShouldPersistTaps="handled">
+          
+          {/* ABDM ID Input */}
+          <View style={styles.abdmContainer}>
+            <TextInput
+              style={styles.abdmInput}
+              placeholder="Enter ABHA address or Number"
+              value={abdmID}
+              onChangeText={setAbdmID}
+              onBlur={handleABDMSearch}
+            />
+            {/* <Text style={styles.fixedText}>@abdm</Text> */}
+            <TouchableOpacity onPress={handleABDMSearch}>
+              <Icon name="search" size={24} color="black" />
+            </TouchableOpacity>
+          </View>
 
-        {/* <Button title="Verify ABHA" onPress={handleverifyabha} color="#102A68" /> */}
+          <View style={styles.abhaContainer}>
+            <Text style={styles.abhaText}>Want to verify ABHA?</Text>
+            <TouchableOpacity onPress={() => setmodelVisible(true)}>
+              <Text style={styles.verifyAbha}> Verify ABHA</Text>
+            </TouchableOpacity>
+          </View>
 
-        <ABHAModal
-          modelVisible={modelVisible}
-          setmodelVisible={setmodelVisible}
-          setAbhaID={setAbdmID}
-          handleAutoABDMSearch={handleAutoABDMSearch}
-        />
+          {/* <Button title="Verify ABHA" onPress={handleverifyabha} color="#102A68" /> */}
 
-        {/* <Text style={styles.title}>Patient Registration Form</Text> */}
-
-        {/* Name Row */}
-        <Text style={styles.label}>Patient Name</Text>
-        <View style={styles.row}>
-
-          <Controller
-            control={control}
-            name="firstName"
-            render={({ field: { onChange, value } }) => (
-              <TextInput
-                style={[
-                  styles.inputSmall,
-                  { marginRight: 10 },
-                  editable ? styles.editableInput : styles.disabledInput,
-                ]}
-                placeholder="First"
-
-                placeholderTextColor="#AAB6C3"
-                value={value}
-                onChangeText={onChange}
-                editable={editable} // <-- Make it non-editable
-                selectTextOnFocus={false} // Optional: prevent selecting text
-              />
-            )}
-          />
-          {/* <Controller
-            control={control}
-            name="middleName"
-            render={({ field: { onChange, value } }) => (
-              <TextInput
-                style={[styles.inputSmall, {marginRight:10}]}
-                placeholder="Middle Name"
-                value={value}
-                onChangeText={onChange}
-                editable={editable} // <-- Make it non-editable
-                selectTextOnFocus={false} // Optional: prevent selecting text
-              />
-            )}
-          /> */}
-
-          <Controller
-            control={control}
-            name="middleName"
-            render={({ field: { onChange, value } }) => (
-              <TextInput
-                style={[
-                  styles.inputSmall,
-                  { marginRight: 10 },
-                  editable ? styles.editableInput : styles.disabledInput,
-                ]}
-                placeholder="Middle"
-
-                placeholderTextColor="#AAB6C3"
-                value={value}
-                onChangeText={onChange}
-                editable={editable}
-                selectTextOnFocus={editable}
-              />
-            )}
+          <ABHAModal
+            modelVisible={modelVisible}
+            setmodelVisible={setmodelVisible}
+            setAbhaID={setAbdmID}
+            handleAutoABDMSearch={handleAutoABDMSearch}
           />
 
-          <Controller
-            control={control}
-            name="lastName"
-            render={({ field: { onChange, value } }) => (
-              <TextInput
-                style={[
-                  styles.inputSmall,
-                  { marginRight: 10 },
-                  editable ? styles.editableInput : styles.disabledInput,
-                ]}
-                placeholder="Last"
-                // placeholdertextsize="small"
-                placeholderTextColor="#AAB6C3"
-                value={value}
-                onChangeText={onChange}
-                editable={editable}
-                selectTextOnFocus={false}
-              />
-            )}
-          />
-        </View>
+          {/* <Text style={styles.title}>Patient Registration Form</Text> */}
 
-        {/* DOB and Age Row */}
-        <Text style={styles.label}>Date Of Birth</Text>
-        <View style={styles.row}>
-          <Controller
-            control={control}
-            name="dob"
-            render={({ field: { value } }) => (
-              <TouchableOpacity
-                onPress={editable ? () => setShowDatePicker(true) : null}
-                style={[
-                  styles.inputSmall,
-                  { justifyContent: 'center' },
-                  editable ? styles.editableInput : styles.disabledInput,
-                ]}
-                activeOpacity={editable ? 0.7 : 1}>
-                <Text style={[styles.dateText,
-                {
-                  color: value ? '#102A68' : '#AAB6C3', // Blue if selected, gray if not
-                },
-                !editable && { color: '#888' }]}>
-                  {value || 'Date of Birth'}
-                </Text>
-              </TouchableOpacity>
-            )}
-          />
+          {/* Name Row */}
+          <Text style={styles.label}>Patient Name</Text>
+          <View style={styles.row}>
 
-          <TextInput
-            style={[
-              styles.inputSmall,
-              { marginLeft: 10 },
-              editable ? styles.editableInput : styles.disabledInput,
-            ]}
-            placeholder="Age"
-            value={age}
-            editable={false}
-          />
-        </View>
-
-
-        <DateTimePicker
-          modal
-          open={showDatePicker}
-          date={watch('dob') ? new Date(watch('dob')) : new Date()}
-          mode="date"
-          editable={editable}
-          onConfirm={selectedDate => {
-            setShowDatePicker(false);
-            const formattedDate = selectedDate.toISOString().split('T')[0];
-            setValue('dob', formattedDate);
-            const calculatedAge = calculateAge(formattedDate);
-            setAge(calculatedAge.toString());
-          }}
-          onCancel={() => setShowDatePicker(false)}
-        />
-
-        {/* Gender Dropdown */}
-        <View style={styles.inputRow}>
-          <View style={styles.dropdownWrapper}>
-            <Text style={styles.label}>Gender</Text>
             <Controller
               control={control}
-              name="gender"
+              name="firstName"
               render={({ field: { onChange, value } }) => (
-                <View style={styles.pickerBox}>
-                  <Picker
-                    selectedValue={value}
-                    onValueChange={editable ? onChange : () => { }}
-                    enabled={editable}
-                    dropdownIconColor={'#AAB6C3'}
-                    style={[
-                      styles.picker,
-                      {
-                        color: value ? '#102A68' : '#AAB6C3', // Blue if selected, gray if not
-                      },
-                      editable ? styles.editableInput : styles.disabledInput,
-                    ]}>
-                    <Picker.Item
-                      label="Gender"
-                      value=""
-                      enabled={false}
-                    />
-                    <Picker.Item label="Male" value="Male" />
-                    <Picker.Item label="Female" value="Female" />
-                    <Picker.Item label="Other" value="Other" />
-                  </Picker>
-                </View>
+                <TextInput
+                  style={[
+                    styles.inputSmall,
+                    { marginRight: 10 },
+                    editable ? styles.editableInput : styles.disabledInput,
+                  ]}
+                  placeholder="First"
+
+                  placeholderTextColor="#AAB6C3"
+                  value={value}
+                  onChangeText={onChange}
+                  editable={editable} // <-- Make it non-editable
+                  selectTextOnFocus={false} // Optional: prevent selecting text
+                />
+              )}
+            />
+            {/* <Controller
+              control={control}
+              name="middleName"
+              render={({ field: { onChange, value } }) => (
+                <TextInput
+                  style={[styles.inputSmall, {marginRight:10}]}
+                  placeholder="Middle Name"
+                  value={value}
+                  onChangeText={onChange}
+                  editable={editable} // <-- Make it non-editable
+                  selectTextOnFocus={false} // Optional: prevent selecting text
+                />
+              )}
+            /> */}
+
+            <Controller
+              control={control}
+              name="middleName"
+              render={({ field: { onChange, value } }) => (
+                <TextInput
+                  style={[
+                    styles.inputSmall,
+                    { marginRight: 10 },
+                    editable ? styles.editableInput : styles.disabledInput,
+                  ]}
+                  placeholder="Middle"
+
+                  placeholderTextColor="#AAB6C3"
+                  value={value}
+                  onChangeText={onChange}
+                  editable={editable}
+                  selectTextOnFocus={editable}
+                />
+              )}
+            />
+
+            <Controller
+              control={control}
+              name="lastName"
+              render={({ field: { onChange, value } }) => (
+                <TextInput
+                  style={[
+                    styles.inputSmall,
+                    { marginRight: 10 },
+                    editable ? styles.editableInput : styles.disabledInput,
+                  ]}
+                  placeholder="Last"
+                  // placeholdertextsize="small"
+                  placeholderTextColor="#AAB6C3"
+                  value={value}
+                  onChangeText={onChange}
+                  editable={editable}
+                  selectTextOnFocus={false}
+                />
               )}
             />
           </View>
 
-          <View style={styles.dropdownWrapper}>
-            <Text style={styles.label}>Blood Group</Text>
-            <Controller
-              control={control}
-              name="bloodgroup"
-              render={({ field: { onChange, value } }) => (
-                <View style={styles.pickerBox}>
-                  <Picker
-                    selectedValue={value}
-                    onValueChange={editable ? onChange : () => { }}
-                    enabled={editable}
+          {/* DOB and Age Row */}
+          <View style={[styles.row, { gap: 10 }]}>
+            <View style={[styles.dropdownWrapper, { width: '65%' }]}>
+              <Text style={styles.label}>Date Of Birth</Text>
+              <Controller
+                control={control}
+                name="dob"
+                render={({ field: { value } }) => (
+                  <TouchableOpacity
+                    onPress={editable ? () => setShowDatePicker(true) : null}
                     style={[
-                      styles.picker,
-                      {
-                        color: value ? '#102A68' : '#AAB6C3', // Blue if selected, gray if not
-                      },
+                      styles.inputSmall,
                       editable ? styles.editableInput : styles.disabledInput,
-                    ]}>
-                    <Picker.Item label="Blood Group" value="" enabled={false} />
-                    <Picker.Item label="A+" value="A+" />
-                    <Picker.Item label="A-" value="A-" />
-                    <Picker.Item label="B+" value="B+" />
-                    <Picker.Item label="B-" value="B-" />
-                    <Picker.Item label="O+" value="O+" />
-                    <Picker.Item label="O-" value="O-" />
-                    <Picker.Item label="AB+" value="AB+" />
-                    <Picker.Item label="AB-" value="AB-" />
-                  </Picker>
-                </View>
-              )}
-            />
+                    ]}
+                    activeOpacity={editable ? 0.7 : 1}>
+                    <Text style={[styles.dateText,
+                    {
+                      color: value ? '#102A68' : '#AAB6C3',
+                    },
+                    !editable && { color: '#888' }]}>
+                      {value || 'Date of Birth'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              />
+            </View>
+
+            <View style={[styles.dropdownWrapper, { width: '30%' }]}>
+              <Text style={styles.label}>Age</Text>
+              <TextInput
+                style={[
+                  styles.inputSmall,
+                  editable ? styles.editableInput : styles.disabledInput,
+                ]}
+                placeholder="Age"
+                placeholderTextColor="#94A3B8"
+                value={age}
+                editable={false}
+              />
+            </View>
           </View>
-        </View>
-        <Text style={styles.label}>Mobile Number</Text>
-        <Controller
-          control={control}
-          name="mobile"
-          rules={{
-            required: 'Mobile number is required',
-            pattern: {
-              value: /^\d{10}$/,
-              message: 'Mobile number must be exactly 10 digits',
-            },
-          }}
-          render={({ field: { onChange, value }, fieldState: { error } }) => (
-            <>
+
+
+          <DateTimePicker
+            modal
+            open={showDatePicker}
+            date={watch('dob') ? new Date(watch('dob')) : new Date()}
+            mode="date"
+            editable={editable}
+            onConfirm={selectedDate => {
+              setShowDatePicker(false);
+              const formattedDate = selectedDate.toISOString().split('T')[0];
+              setValue('dob', formattedDate);
+              const calculatedAge = calculateAge(formattedDate);
+              setAge(calculatedAge.toString());
+            }}
+            onCancel={() => setShowDatePicker(false)}
+          />
+
+          {/* Gender Dropdown */}
+          <View style={styles.inputRow}>
+            <View style={styles.dropdownWrapper}>
+              <Text style={styles.label}>Gender</Text>
+              <Controller
+                control={control}
+                name="gender"
+                render={({ field: { onChange, value } }) => (
+                  <View style={styles.pickerBox}>
+                    <Picker
+                      selectedValue={value}
+                      onValueChange={editable ? onChange : () => { }}
+                      enabled={editable}
+                      dropdownIconColor={'#AAB6C3'}
+                      style={[
+                        styles.picker,
+                        {
+                          color: value ? '#102A68' : '#AAB6C3', 
+                        },
+                        editable ? styles.editableInput : styles.disabledInput,
+                      ]}>
+                      <Picker.Item
+                        label="Gender"
+                        value=""
+                        enabled={false}
+                      />
+                      <Picker.Item label="Male" value="Male" />
+                      <Picker.Item label="Female" value="Female" />
+                      <Picker.Item label="Other" value="Other" />
+                    </Picker>
+                  </View>
+                )}
+              />
+            </View>
+
+            <View style={styles.dropdownWrapper}>
+              <Text style={styles.label}>Blood Group</Text>
+              <Controller
+                control={control}
+                name="bloodgroup"
+                render={({ field: { onChange, value } }) => (
+                  <View style={styles.pickerBox}>
+                    <Picker
+                      selectedValue={value}
+                      onValueChange={editable ? onChange : () => { }}
+                      enabled={editable}
+                      style={[
+                        styles.picker,
+                        {
+                          color: value ? '#102A68' : '#AAB6C3', // Blue if selected, gray if not
+                        },
+                        editable ? styles.editableInput : styles.disabledInput,
+                      ]}>
+                      <Picker.Item label="Blood Group" value="" enabled={false} />
+                      <Picker.Item label="A+" value="A+" />
+                      <Picker.Item label="A-" value="A-" />
+                      <Picker.Item label="B+" value="B+" />
+                      <Picker.Item label="B-" value="B-" />
+                      <Picker.Item label="O+" value="O+" />
+                      <Picker.Item label="O-" value="O-" />
+                      <Picker.Item label="AB+" value="AB+" />
+                      <Picker.Item label="AB-" value="AB-" />
+                    </Picker>
+                  </View>
+                )}
+              />
+            </View>
+          </View>
+          <Text style={styles.label}>Mobile Number</Text>
+          <Controller
+            control={control}
+            name="mobile"
+            rules={{
+              required: 'Mobile number is required',
+              pattern: {
+                value: /^\d{10}$/,
+                message: 'Mobile number must be exactly 10 digits',
+              },
+            }}
+            render={({ field: { onChange, value }, fieldState: { error } }) => (
+              <>
+                <TextInput
+                  style={[
+                    styles.input,
+                    editable ? styles.editableInput : styles.disabledInput,
+                    error && { borderColor: 'red' }, // highlight error
+                  ]}
+                  placeholder="Mobile Number"
+                  placeholderTextColor="#AAB6C3"
+                  keyboardType="phone-pad"
+                  value={value}
+                  onChangeText={onChange}
+                  editable={editable}
+                  selectTextOnFocus={editable}
+                  maxLength={10} // Optional: restrict input to 10 characters
+                />
+                {error && (
+                  <Text style={{ color: 'red', fontSize: 12 }}>
+                    {error.message}
+                  </Text>
+                )}
+              </>
+            )}
+          />
+          {/* Email Input */}
+          <Text style={styles.label}>Email</Text>
+          <Controller
+            control={control}
+            name="email"
+            render={({ field: { onChange, value }, fieldState: { error } }) => (
+
               <TextInput
                 style={[
                   styles.input,
                   editable ? styles.editableInput : styles.disabledInput,
-                  error && { borderColor: 'red' }, // highlight error
+                  // error && { borderColor: 'red' },
                 ]}
-                placeholder="Mobile Number"
+                placeholder="Email"
                 placeholderTextColor="#AAB6C3"
-                keyboardType="phone-pad"
+                keyboardType="email-address"
                 value={value}
                 onChangeText={onChange}
                 editable={editable}
                 selectTextOnFocus={editable}
-                maxLength={10} // Optional: restrict input to 10 characters
+                autoCapitalize="none"
               />
-              {error && (
-                <Text style={{ color: 'red', fontSize: 12 }}>
-                  {error.message}
-                </Text>
-              )}
-            </>
-          )}
-        />
-        {/* Email Input */}
-        <Text style={styles.label}>Email</Text>
-        <Controller
-          control={control}
-          name="email"
-          render={({ field: { onChange, value }, fieldState: { error } }) => (
-
-            <TextInput
-              style={[
-                styles.input,
-                editable ? styles.editableInput : styles.disabledInput,
-                // error && { borderColor: 'red' },
-              ]}
-              placeholder="Email"
-              placeholderTextColor="#AAB6C3"
-              keyboardType="email-address"
-              value={value}
-              onChangeText={onChange}
-              editable={editable}
-              selectTextOnFocus={editable}
-              autoCapitalize="none"
-            />
-          )}
-        />
+            )}
+          />
 
 
-        {/* Address */}
-        <Text style={styles.label}>Address</Text>
-        <Controller
-          control={control}
-          name="address"
-          render={({ field: { onChange, value } }) => (
-            <TextInput
-              style={[
-                styles.input,
-                editable ? styles.editableInput : styles.disabledInput,
-                {
-                  height: 100,
-                }
-              ]}
-              placeholder="Address"
-              placeholderTextColor="#AAB6C3"
-              value={value}
-              onChangeText={onChange}
-              editable={editable}
-              selectTextOnFocus={editable}
-              multiline={true}
-              numberOfLines={4}
-              textAlignVertical="top"
-            />
-          )}
-        />
+          {/* Address */}
+          <Text style={styles.label}>Address</Text>
+          <Controller
+            control={control}
+            name="address"
+            render={({ field: { onChange, value } }) => (
+              <TextInput
+                style={[
+                  styles.input,
+                  editable ? styles.editableInput : styles.disabledInput,
+                  {
+                    height:80,
+                  }
+                ]}
+                placeholder="Address"
+                placeholderTextColor="#AAB6C3"
+                value={value}
+                onChangeText={onChange}
+                editable={editable}
+                selectTextOnFocus={editable}
+                multiline={true}
+                numberOfLines={2}
+                textAlignVertical="top"
+              />
+            )}
+          />
 
-        <View style={styles.buttonRow}>
-          <TouchableOpacity
-            style={[styles.submitButton, loading && { backgroundColor: 'gray' }]}
-            onPress={handleSubmit(onSubmit)}
-            disabled={loading}
-          >
-            <Text style={styles.buttonText}>
-              {loading ? 'Submitting...' : 'Submit'}
-            </Text>
-          </TouchableOpacity>
+          <View style={styles.buttonRow}>
+            <TouchableOpacity
+              style={[styles.submitButton, loading && { backgroundColor: 'gray' }]}
+              onPress={handleSubmit(onSubmit)}
+              disabled={loading}
+            >
+              <Text style={styles.buttonText}>
+                {loading ? 'Submitting...' : 'Submit'}
+              </Text>
+            </TouchableOpacity>
 
 
 
-          <TouchableOpacity
-            style={styles.clearButton}
-            onPress={() => {
+            <TouchableOpacity
+              style={styles.clearButton}
+              onPress={() => {
 
-              handleclearFields();
-            }}>
-            <Text style={styles.buttonText}>Clear</Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView >
+                handleclearFields();
+              }}>
+              <Text style={styles.buttonText}>Clear</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+
+      {renderDoctorModal()}
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f7fa',
-    paddingBottom: 50,
+    backgroundColor: '#FFFFFF',
+  },
+  headerContainer: {
+    width: '100%',
+    backgroundColor: '#FFFFFF',
+  },
+  headerGradient: {
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+  },
+  doctorSelectorHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 6,
+  },
+  doctorInfoHeader: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 8,
+  },
+  doctorLabelHeader: {
+    fontSize: 14,
+    color: '#FFFFFF',
+    marginRight: 6,
+    opacity: 0.85,
+  },
+  doctorNameHeader: {
+    flex: 1,
+    fontSize: 14,
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
+  iconContainer: {
+    padding: 2,
+  },
+  keyboardView: {
+    flex: 1,
+  },
+  scrollContainer: {
+    flexGrow: 1,
+    padding: 20,
+    backgroundColor: '#F4F6FA',
   },
   abdmContainer: {
     flexDirection: 'row',
@@ -803,11 +966,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     textAlign: 'center',
-  },
-  scrollContainer: {
-    flexGrow: 1,
-    padding: 20,
-    backgroundColor: '#F4F6FA',
   },
   containerBox: {
     backgroundColor: '#FFFFFF',
@@ -913,6 +1071,46 @@ const styles = StyleSheet.create({
     textAlign: 'left',
     height: 40,
     justifyContent: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    maxHeight: '80%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15,
+    paddingHorizontal: 4,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#102A68',
+  },
+  doctorItem: {
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  selectedDoctor: {
+    backgroundColor: '#EBF5FF',
+  },
+  selectedDoctorText: {
+    color: '#102A68',
+    fontWeight: '600',
   },
 });
 

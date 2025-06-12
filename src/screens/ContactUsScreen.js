@@ -1,6 +1,5 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, Animated, Linking, TouchableOpacity } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 
 const ContactUsScreen = () => {
@@ -60,7 +59,6 @@ const ContactUsScreen = () => {
     };
 
     return (
-        <SafeAreaView style={styles.safeArea}>
             <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
                 <Animated.View style={[styles.header, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
                     <Text style={styles.title}>Contact Us</Text>
@@ -129,7 +127,6 @@ const ContactUsScreen = () => {
                     </View> */}
                 </View>
             </ScrollView>
-        </SafeAreaView>
     );
 };
 
