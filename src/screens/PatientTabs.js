@@ -4,12 +4,13 @@ import React, { useState, useEffect } from 'react';
 import { View, TouchableOpacity, Text, StyleSheet, Dimensions } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import PatientDetail from './tabs/PatientDetail';
-import PatientReport from './tabs/PatientReport';
-import PatientHistory from './tabs/PatientHistory';
+import PrescriptionHistory from './tabs/PrescriptionHistory';
+import GetSaveBill from './tabs/GetSaveBill';
+import GetSaveDiagnostic from './tabs/GetSaveDiagnostic';
 import Icon from 'react-native-vector-icons/Ionicons';
-import Animated, { 
-  withSpring, 
-  useAnimatedStyle, 
+import Animated, {
+  withSpring,
+  useAnimatedStyle,
   useSharedValue,
   withTiming,
   interpolate
@@ -72,22 +73,23 @@ const PatientTabs = ({ route }) => {
         />
       </AnimatedTouchable>
       <Animated.View style={[styles.fabMenu, menuAnimatedStyle]}>
-        {['Detail', 'Report', 'History'].map((tabName, index) => (
+        {['Detail', 'Prescription', 'Bill', 'Diagnostic'].map((tabName, index) => (
           <TouchableOpacity
             key={tabName}
             onPress={() => handleFabOption(props.navigation, tabName)}
-            style={[styles.fabItem, { 
+            style={[styles.fabItem, {
               backgroundColor: fabVisible ? '#fff' : 'transparent',
               transform: [{ translateY: fabVisible ? 0 : 20 }],
               transitionDelay: `${index * 100}ms`
             }]}>
-            <Icon 
+            <Icon
               name={
                 tabName === 'Detail' ? 'document-text' :
-                tabName === 'Report' ? 'bar-chart' : 'time'
-              } 
-              size={22} 
-              color="#0A3C97" 
+                  tabName === 'Prescription' ? 'time' :
+                    tabName === 'Bill' ? 'receipt' : 'medical'
+              }
+              size={22}
+              color="#0A3C97"
               style={styles.fabItemIcon}
             />
             <Text style={styles.fabText}>{tabName}</Text>
@@ -100,7 +102,9 @@ const PatientTabs = ({ route }) => {
   return (
     <Tab.Navigator
       initialRouteName={
-        initialTab === 1 ? 'Report' : initialTab === 2 ? 'History' : 'Detail'
+        initialTab === 1 ? 'Prescription' :
+          initialTab === 2 ? 'Bill' :
+            initialTab === 3 ? 'Diagnostic' : 'Detail'
       }
       screenOptions={{
         tabBarActiveTintColor: '#0A3C97',
@@ -119,25 +123,36 @@ const PatientTabs = ({ route }) => {
       </Tab.Screen>
 
       <Tab.Screen
-        name="Report"
+        name="Prescription"
         options={{
-          tabBarLabel: 'Report',
-          tabBarIcon: ({ color, size }) => (
-            <Icon name="bar-chart" size={size} color={color} />
-          ),
-        }}>
-        {props => renderTabScreen(props, PatientReport)}
-      </Tab.Screen>
-
-      <Tab.Screen
-        name="History"
-        options={{
-          tabBarLabel: 'History',
+          tabBarLabel: 'Prescription',
           tabBarIcon: ({ color, size }) => (
             <Icon name="time" size={size} color={color} />
           ),
         }}>
-        {props => renderTabScreen(props, PatientHistory)}
+        {props => renderTabScreen(props, PrescriptionHistory)}
+      </Tab.Screen>
+
+      <Tab.Screen
+        name="Bill"
+        options={{
+          tabBarLabel: 'Bill',
+          tabBarIcon: ({ color, size }) => (
+            <Icon name="receipt" size={size} color={color} />
+          ),
+        }}>
+        {props => renderTabScreen(props, GetSaveBill)}
+      </Tab.Screen>
+
+      <Tab.Screen
+        name="Diagnostic"
+        options={{
+          tabBarLabel: 'Diagnostic',
+          tabBarIcon: ({ color, size }) => (
+            <Icon name="medical" size={size} color={color} />
+          ),
+        }}>
+        {props => renderTabScreen(props, GetSaveDiagnostic)}
       </Tab.Screen>
     </Tab.Navigator>
   );

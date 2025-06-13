@@ -10,8 +10,22 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   StyleSheet,
+  Dimensions,
+  Platform,
 } from 'react-native';
 import { confirmAbhaOtp, initiateAbhaVerification, requestAbhaOtp } from '../api/api';
+
+const { width } = Dimensions.get('window');
+
+const THEME_COLORS = {
+  primary: '#0A3C97',
+  secondary: '#3B82F6',
+  background: '#F5F6FA',
+  surface: '#FFFFFF',
+  text: '#1E293B',
+  textSecondary: '#64748B',
+  border: '#E2E8F0',
+};
 
 const ABHAModal = ({ modelVisible, setmodelVisible, setAbhaID, handleAutoABDMSearch }) => {
   const [inputId, setInputId] = useState('');
@@ -217,10 +231,20 @@ const ABHAModal = ({ modelVisible, setmodelVisible, setAbhaID, handleAutoABDMSea
     <Modal visible={modelVisible} transparent animationType="fade">
       <View style={styles.modalOverlay}>
         <View style={styles.modalContainer}>
-          <Text style={styles.modalTitle}>ABHA Verification</Text>
-          {renderStepContent()}
-          <TouchableOpacity onPress={() => { clearFields(); setmodelVisible(false); }} style={styles.cancelButton}>
-            <Text style={styles.cancelBttonText}>Close</Text>
+          <View style={styles.headerContainer}>
+            <Text style={styles.modalTitle}>ABHA Verification</Text>
+            <View style={styles.progressBar}>
+              <View style={[styles.progressIndicator, { width: `${(step / 3) * 100}%` }]} />
+            </View>
+          </View>
+          <View style={styles.contentContainer}>
+            {renderStepContent()}
+          </View>
+          <TouchableOpacity 
+            onPress={() => { clearFields(); setmodelVisible(false); }} 
+            style={styles.cancelButton}
+          >
+            <Text style={styles.cancelButtonText}>Close</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -230,119 +254,124 @@ const ABHAModal = ({ modelVisible, setmodelVisible, setAbhaID, handleAutoABDMSea
 
 export default ABHAModal;
 
-
-
-
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   modalContainer: {
-    width: '90%',
-    backgroundColor: '#fff',
+    width: width * 0.85,
+    backgroundColor: THEME_COLORS.surface,
     borderRadius: 16,
-    padding: 20,
-    elevation: 10,
+    padding: 16,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+  },
+  headerContainer: {
+    marginBottom: 12,
   },
   modalTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 20,
+    fontWeight: '700',
+    marginBottom: 8,
     textAlign: 'center',
-    color: '#2c3e50',
+    color: THEME_COLORS.primary,
   },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 10,
-    padding: 10,
-    marginBottom: 15,
-    fontSize: 16,
+  progressBar: {
+    height: 4,
+    backgroundColor: THEME_COLORS.border,
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  progressIndicator: {
+    height: '100%',
+    backgroundColor: THEME_COLORS.primary,
+    borderRadius: 2,
+  },
+  contentContainer: {
+    marginBottom: 12,
   },
   subTitle: {
     fontSize: 16,
-    marginBottom: 10,
-    fontWeight: '500',
+    marginBottom: 8,
+    fontWeight: '600',
+    color: THEME_COLORS.text,
   },
-  otpOptions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-  },
-  otpButton: {
-    flex: 1,
+  input: {
+    borderWidth: 1.5,
+    borderColor: THEME_COLORS.border,
+    borderRadius: 8,
     padding: 10,
-    borderRadius: 10,
-    borderColor: '#3498db',
-    borderWidth: 1,
-    marginHorizontal: 5,
-    alignItems: 'center',
-  },
-  selectedButton: {
-    backgroundColor: '#3498db',
-  },
-  otpButtonText: {
-    color: '#3498db',
-    fontWeight: '600',
-  },
-  verifyButton: {
-    backgroundColor: 'blue',
-    paddingVertical: 12,
-    borderRadius: 10,
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  verifyButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  cancelButton: {
-    marginTop: 10,
-    // backgroundColor: '#e74c3c',
-    backgroundColor: '#bdc3c7',
-    borderColor: '#e74c3c',
-    paddingVertical: 12,
-    borderRadius: 10,
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  cancelBttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  radioGroup: {
-    flexDirection: 'column',
-    gap: 10,
-    marginBottom: 20,
+    marginBottom: 12,
+    fontSize: 14,
+    backgroundColor: THEME_COLORS.surface,
+    color: THEME_COLORS.text,
+    fontWeight: '500',
   },
   radioOption: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 8,
+    padding: 10,
+    borderRadius: 8,
+    backgroundColor: THEME_COLORS.surface,
+    borderWidth: 1.5,
+    borderColor: THEME_COLORS.border,
   },
   radioOuter: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     borderWidth: 2,
-    borderColor: '#3498db',
+    borderColor: THEME_COLORS.primary,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 10,
   },
   radioInner: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#3498db',
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: THEME_COLORS.primary,
   },
   radioLabel: {
+    fontSize: 14,
+    color: THEME_COLORS.text,
+    fontWeight: '600',
+  },
+  verifyButton: {
+    backgroundColor: THEME_COLORS.primary,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginBottom: 8,
+    elevation: 4,
+    shadowColor: THEME_COLORS.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+  },
+  verifyButtonText: {
+    color: THEME_COLORS.surface,
     fontSize: 16,
-    color: '#2c3e50',
+    fontWeight: '700',
+  },
+  cancelButton: {
+    backgroundColor: THEME_COLORS.surface,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: THEME_COLORS.primary,
+  },
+  cancelButtonText: {
+    color: THEME_COLORS.primary,
+    fontSize: 14,
+    fontWeight: '600',
   },
 });

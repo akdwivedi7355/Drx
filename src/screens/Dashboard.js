@@ -14,13 +14,15 @@ import {
   ActivityIndicator,
   StatusBar,
   SafeAreaView,
-} from 'react-native';
+  Alert,
+  } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import {
   getpatientList,
   getdefaultconsultant,
   getUserDefaultDetails,
+  DiscardRegistration,
 } from '../api/api';
 import { TextInput } from 'react-native-paper';
 import DateTimePicker from 'react-native-date-picker';
@@ -156,8 +158,38 @@ export default function Dashboard() {
     setExpandedId(prev => (prev === id ? null : id));
   };
 
-  const handleNavigate = (patientId, tab) => {
+  const handleDiscardRegistration = async (regDocid) => {
+    Alert.alert(
+      'Discard Registration',
+      'Are you sure you want to discard this registration?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel' 
+        },
+        {
+          text: 'Discard',
+          style: 'destructive',
+          onPress: async () => {
+            console.log('Discard Registration', regDocid);
+            const res = await DiscardRegistration(regDocid);  
+            console.log('Discard Registration', res);
+            if (res.status) {
+              Alert.alert('Record discarded successfully');
+              fetchPatients(0, false);
+            } else {
+              Alert.alert('Error', 'Failed to discard record');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleNavigate = async (patientId, tab) => {
     const patient = patients.find(p => p.regId === patientId);
+
+    patient.consultantCode = selectedDoctor.consultantCode;
 
     console.log('Navigating for patient:', patient, 'Tab:', tab);
 
@@ -177,7 +209,9 @@ export default function Dashboard() {
         navigation.navigate('MedicalBillSubmission', { patient });
         break;
       case 3:
-        navigation.navigate('MedicalBillSubmission', { patient });
+        await handleDiscardRegistration(patient.regId);
+        fetchPatients(0, false);
+        navigation.navigate('Dashboard');
         break;
       case 6:
         navigation.navigate('PatientTabs', { patientId, initialTab: 0 });

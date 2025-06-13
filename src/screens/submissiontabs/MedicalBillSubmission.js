@@ -94,16 +94,33 @@ const MedicalBillSubmission = ({ route }) => {
 
             // Resize images to fit A4 within reason
             for (const img of images) {
-                const resized = await ImageResizer.createResizedImage(
-                    img,
-                    1000,
-                    1400,
-                    'JPEG',
-                    90
-                );
+                try {
+                    console.log('Processing image:', img);
+                    const resized = await ImageResizer.createResizedImage(
+                        img,
+                        1000,  // width
+                        1400,  // height
+                        'JPEG',
+                        90,    // quality
+                        0,     // rotation
+                        null,  // outputPath
+                        false  // keep metadata
+                    );
 
-                const path = resized.uri.startsWith('file://') ? resized.uri : 'file://' + resized.uri;
-                optimizedImagePaths.push(path);
+                    console.log('Resized image result:', resized);
+                    const path = resized.uri.startsWith('file://') ? resized.uri : 'file://' + resized.uri;
+                    optimizedImagePaths.push(path);
+                } catch (resizeError) {
+                    console.error('Image resize error:', resizeError);
+                    throw new Error('Failed to optimize image for PDF conversion');
+                }
+            }
+
+            console.log('Optimized image paths:', optimizedImagePaths);
+
+            // Validate that we have paths after optimization
+            if (optimizedImagePaths.length === 0) {
+                throw new Error('No images were successfully optimized');
             }
 
             const htmlContent = `
@@ -166,26 +183,64 @@ const MedicalBillSubmission = ({ route }) => {
             </html>
         `;
 
-            const pdf = await RNHTMLtoPDF.convert({
+            const options = {
                 html: htmlContent,
                 fileName: `scanned_document_${Date.now()}`,
                 directory: 'Documents',
-                base64: true, // to upload to API
+                base64: true,
                 width: 595,    // A4 width in points
                 height: 842,   // A4 height in points
-                quality: 100,
+                quality: 0.9,  // Slightly reduced quality to ensure smaller file size
                 bgColor: '#FFFFFF',
-            });
+            };
+
+            console.log('Converting to PDF with options:', options);
+            const pdf = await RNHTMLtoPDF.convert(options);
+            
+            if (!pdf || !pdf.base64) {
+                console.error('PDF generation failed - no base64 output');
+                throw new Error('PDF generation failed - no base64 output');
+            }
+
+            console.log('PDF generation successful, base64 length:', pdf.base64?.length);
+            console.log('First 50 chars of base64:', pdf.base64?.substring(0, 50));
+            console.log('Last 50 chars of base64:', pdf.base64?.substring(pdf.base64.length - 50));
+
+            // Check if the string contains any invalid characters
+            const invalidChars = pdf.base64.match(/[^A-Za-z0-9+/=]/g);
+            if (invalidChars) {
+                console.error('Invalid characters found in base64:', [...new Set(invalidChars)]);
+                
+                // Try to clean the base64 string
+                let cleanedBase64 = pdf.base64
+                    .replace(/\s/g, '')  // Remove any whitespace
+                    .replace(/[^A-Za-z0-9+/=]/g, ''); // Remove any invalid characters
+                
+                // Ensure proper padding
+                while (cleanedBase64.length % 4) {
+                    cleanedBase64 += '=';
+                }
+                
+                if (/^[A-Za-z0-9+/]*={0,2}$/.test(cleanedBase64)) {
+                    console.log('Successfully cleaned base64 string');
+                    return cleanedBase64;
+                }
+            }
+
+            // Validate the base64 string
+            if (!/^[A-Za-z0-9+/]*={0,2}$/.test(pdf.base64)) {
+                console.error('Base64 validation failed');
+                throw new Error('Generated PDF data is not in valid base64 format');
+            }
 
             return pdf.base64;
 
         } catch (error) {
             console.error('PDF creation error:', error);
-            Alert.alert('Error', 'PDF generation failed.');
+            Alert.alert('Error', `PDF generation failed: ${error.message}`);
             return null;
         }
     };
-
 
     const handleSubmit = async () => {
         if (scannedImages.length === 0) {
@@ -196,38 +251,47 @@ const MedicalBillSubmission = ({ route }) => {
         setIsProcessing(true);
 
         try {
+            console.log('Starting PDF conversion process...');
             const pdfBase64 = await convertImagesToPDFBase64(scannedImages);
-            console.log('PDF Base64:', pdfBase64);
-            if (!pdfBase64) return;
+            
+            if (!pdfBase64) {
+                console.error('PDF conversion returned null');
+                Alert.alert('Error', 'Failed to generate PDF base64 data.');
+                return;
+            }
 
-            const resdoc = await getUserDefaultDetails();
-            const defaultres = {
-                consultantCode: resdoc.data.userLinkedConsultantCode,
-                consultantName: resdoc.data.userLinkedConsultantName,
-                consultantInitial: 'Dr.',
-            };
-
+            console.log('PDF conversion successful, preparing to submit...');
+            
             const patientData = {
                 regDocid: Patient.regId,
                 isDoc: true,
-                consultantCode: defaultres.consultantCode,
+                consultantCode: Patient.consultantCode,
                 uhid: Patient.uhid,
                 rawData: pdfBase64,
             };
 
-            console.log('Patient data to save:', patientData);
+            console.log('Submitting to API with data length:', pdfBase64.length);
 
             const res = await saveMedicalBillReort(patientData);
+            console.log('API Response:', JSON.stringify(res, null, 2));
+
             if (!res) {
                 Alert.alert('Error', 'Failed to save patient data.');
                 return;
             }
-            Alert.alert('Success', 'PDF submitted successfully.');
-            handleClear(); // Clear images after successful submission
-            navigation.goBack();
+            
+            if(res.status) {
+                Alert.alert('Success', 'PDF submitted successfully.');
+                handleClear(); 
+                navigation.goBack();
+            } else {
+                const errorMsg = res.respDescription || res.errorMessage || 'Unknown error';
+                console.error('API Error:', errorMsg);
+                Alert.alert('Error', `Failed to submit PDF: ${errorMsg}`);
+            }
         } catch (error) {
             console.error('Submission error:', error);
-            Alert.alert('Error', 'Failed to submit PDF.');
+            Alert.alert('Error', `Failed to submit PDF: ${error.message}`);
         } finally {
             setIsProcessing(false);
         }

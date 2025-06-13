@@ -19,7 +19,7 @@ import PatientForm from '../screens/Patients';
 import PatientList from '../screens/PatientList';
 import AboutScreen from '../screens/AboutScreen';
 import ContactUsScreen from '../screens/ContactUsScreen';
-import LoadingScreen from '../screens/LoadingScreen';
+// import LoadingScreen from '../screens/LoadingScreen';
 // import AppStack from './AppStack';
 
 const Drawer = createDrawerNavigator();
@@ -98,45 +98,6 @@ const AppDrawer = () => {
         }}
       />
 
-      <Drawer.Screen
-        name="Loading"
-        component={LoadingScreen}
-        headerShown={false}
-        options={{
-          drawerIcon: ({ color }) => (
-            <Ionicons name="timer-outline" size={22} color={color} />
-          ),
-        }}
-      />
-
-
-      {/* <Drawer.Screen
-        name="Messages"
-        component={MessagesScreen}
-        options={{
-          drawerIcon: ({ color }) => (
-            <Ionicons name="chatbox-ellipses-outline" size={22} color={color} />
-          ),
-        }}
-      />
-      <Drawer.Screen
-        name="Moments"
-        component={MomentsScreen}
-        options={{
-          drawerIcon: ({ color }) => (
-            <Ionicons name="timer-outline" size={22} color={color} />
-          ),
-        }}
-      />
-      <Drawer.Screen
-        name="Settings"
-        component={SettingsScreen}
-        options={{
-          drawerIcon: ({ color }) => (
-            <Ionicons name="settings-outline" size={22} color={color} />
-          ),
-        }}
-      /> */}
     </Drawer.Navigator>
   );
 };

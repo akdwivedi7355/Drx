@@ -123,8 +123,15 @@ const PatientForm = () => {
   };
 
   const handleABDMSearch = async () => {
+    // For debugging
+    console.log("ABDM ID Check:", {
+      abdmID,
+      trimmed: abdmID.trim(),
+      length: abdmID.trim().length
+    });
 
-    if (!abdmID.trim()) {
+    // Check if ABDM ID is empty or contains only whitespace
+    if (!abdmID || abdmID.trim().length === 0) {
       Alert.alert('Error', 'Please enter a valid ABHA address or Number');
       setEditable(true); // Make fields editable again
       handleclearFields(); // Clear fields if input is empty
@@ -152,8 +159,9 @@ const PatientForm = () => {
     }
 
     try {
+      console.log("trimmedID", type, trimmedID);
       const response = await verifyAbdmStatus(type, trimmedID);
-
+      console.log("response", response);
       if (response.status && response.data) {
         if (response.data.abhaNumber === undefined || response.data.abhaNumber === null) {
           setEditable(true); // Make fields editable again
@@ -199,7 +207,14 @@ const PatientForm = () => {
         setValue('name', user.name || '');
         setEditable(false);
         setAge(calculatedAge.toString());
-      } else {
+      }
+       else if (response.status && response.data.statusRemark === 'ABDM Number not found') {
+        setEditable(true); // Make fields editable again
+        handleclearFields();
+        Alert.alert('ABDM Search Failed', response.data.statusRemark || 'ABDM Number not found');
+        return;
+      }
+      else {
         setEditable(true); // Make fields editable again
         handleclearFields();
         Alert.alert('ABDM Search Failed', response.errorMessage || 'Unknown error');
@@ -327,6 +342,7 @@ const PatientForm = () => {
   };
 
   const onSubmit = async (data) => {
+    console.log('data', data);
     if (!data.firstName || !data.lastName || !data.dob || !data.mobile) {
       Alert.alert('Error', 'Please fill in all required fields');
       return;
@@ -660,7 +676,7 @@ const PatientForm = () => {
                       style={[
                         styles.picker,
                         {
-                          color: value ? '#102A68' : '#AAB6C3', 
+                          color: value ? '#102A68' : '#AAB6C3', // Blue if selected, gray if not
                         },
                         editable ? styles.editableInput : styles.disabledInput,
                       ]}>

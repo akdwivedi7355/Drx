@@ -6,93 +6,53 @@ import {
     TouchableOpacity,
     FlatList,
     StyleSheet,
-    Modal,
-    Pressable,
     ActivityIndicator,
+    StatusBar,
+    SafeAreaView,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import {
-    getpatientList,
-    getalldoctors,
-    getStoredUserDetails,
-    getdefaultconsultant,
+    getpatientListwithoutdoctor,
 } from '../api/api';
 import { TextInput } from 'react-native-paper';
-import DateTimePicker from 'react-native-date-picker';
-import PatientForm from './Patients';
-
-import { useFocusEffect, useRoute } from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
 
 const iconMap = {
-    Details: 'person-outline',
-    Report: 'document-text-outline',
-    History: 'time-outline',
-    Prescriptions: 'medkit-outline',
-    Vitals: 'fitness-outline',
+    Prescriptions: { icon: 'clipboard-outline', name: 'Prescription', color: '#4F46E5' },
+    Diagnostic: { icon: 'flask-outline', name: 'Diagnostic', color: '#059669' },
+    MedicalBill: { icon: 'cash-outline', name: 'Medical Bill', color: '#B45309' },
+    Discard: { icon: 'trash-outline', name: 'Discard', color: '#DC2626' },
 };
 
 export default function PatientList() {
-    const [selectedDoctor, setSelectedDoctor] = useState(null);
-    const [doctors, setDoctors] = useState([]);
     const [patients, setPatients] = useState([]);
     const [page, setPage] = useState(0);
     const [hasMoreData, setHasMoreData] = useState(true);
     const [loading, setLoading] = useState(false);
     const [expandedId, setExpandedId] = useState(null);
-    const [modalVisible, setModalVisible] = useState(false);
     const [searchText, setSearchText] = useState('');
-    const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-    const [showDatePicker, setShowDatePicker] = useState(false);
     const navigation = useNavigation();
 
+    // Add sortedPatients computed value
+    const sortedPatients = React.useMemo(() => {
+        return [...patients].sort((a, b) => {
+            const tokenA = parseInt(a.tokenNo, 10);
+            const tokenB = parseInt(b.tokenNo, 10);
+            return tokenA - tokenB;
+        });
+    }, [patients]);
 
-    const route = useRoute();
     useFocusEffect(
         React.useCallback(() => {
-            fetchPatients(0, false); // Re-fetch when screen regains focus
+            fetchPatients(0, false);
         }, [])
     );
 
-
-
-    const fetchDefaultDoctor = async () => {
-        try {
-            const res = await getStoredUserDetails();
-            const defaultres = {
-                consultantCode: res.userLinkedConsultantCode,
-                consultantName: res.userLinkedConsultantName,
-                consultantInitial: 'Dr.',
-            };
-            setSelectedDoctor(defaultres);
-        } catch (err) {
-            console.error('Error fetching default doctor:', err);
-        }
-    };
-
-    const fetchDoctors = async () => {
-        try {
-            const res = await getdefaultconsultant();
-            if (res.status && res.data) {
-                setDoctors(res.data);
-            }
-        } catch (err) {
-            console.error('Error fetching doctors:', err);
-        }
-    };
-
-    const formatDate = (inputDate) => {
-        const dateObj = new Date(inputDate);
-        return `${String(dateObj.getDate()).padStart(2, '0')}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${dateObj.getFullYear()}`;
-    };
-
     const fetchPatients = async (pageIndex = 0, append = false) => {
-        if (!selectedDoctor) return;
         try {
             setLoading(true);
-            const res = await getpatientList(
-                selectedDoctor.consultantCode,
-                formatDate(selectedDate),
+            const res = await getpatientListwithoutdoctor(
                 searchText,
                 '10',
                 (pageIndex * 10).toString()
@@ -112,17 +72,12 @@ export default function PatientList() {
     };
 
     useEffect(() => {
-        fetchDefaultDoctor();
-        fetchDoctors();
-    }, []);
-
-    useEffect(() => {
-        if (selectedDoctor) {
+        if (searchText) {
             setPage(0);
             setHasMoreData(true);
             fetchPatients(0, false);
         }
-    }, [selectedDoctor, selectedDate, searchText]);
+    }, [searchText]);
 
     const handleLoadMore = () => {
         if (!loading && hasMoreData) {
@@ -137,28 +92,72 @@ export default function PatientList() {
     };
 
     const handleNavigate = (patientId, tab) => {
-        navigation.navigate('PatientTabs', { patientId, initialTab: tab });
+        const patient = patients.find(p => p.regId === patientId);
+
+        console.log('Navigating to tab:', tab, 'for patient:', patient);
+
+        if (!patient) {
+            console.warn('Patient not found!');
+            return;
+        }
+
+        switch (tab) {
+            case 0:
+                navigation.navigate('PrescriptionSubmission', { patient });
+                break;
+            case 1:
+                navigation.navigate('DiagnosticSubmission', { patient });
+                break;
+            case 2:
+                navigation.navigate('MedicalBillSubmission', { patient });
+                break;
+            case 3:
+                navigation.navigate('MedicalBillSubmission', { patient });
+                break;
+            case 6:
+                navigation.navigate('PatientTabs', { patientId, initialTab: 0 });
+                break;
+            default:
+                console.warn('Unhandled tab value:', tab);
+        }
     };
 
     const renderPatientItem = ({ item }) => (
-        <TouchableOpacity onPress={() => handleNavigate(item.regId, 0)}>
+        <TouchableOpacity
+            onPress={() => handleNavigate(item.regId, 6)}
+            style={styles.cardContainer}
+        >
             <View style={styles.card}>
                 <View style={styles.cardHeader}>
-                    <View style={{ flex: 1 }}>
-                        <Text style={styles.name}>{item.patientName}</Text>
-                        <Text style={styles.metaText}>
-                            UHIDNO: {item.uhidNo} | Reg Date: {item.regDate}
-                        </Text>
-                        <Text style={styles.metaText}>
-                            Reg No: {item.regNo}
-                        </Text>
+                    <View style={styles.leftSection}>
+                        <View style={styles.tokenContainer}>
+                            <Text style={styles.tokenText}>{item.tokenNo}</Text>
+                        </View>
+                        <View style={styles.mainInfo}>
+                            <View style={styles.nameRow}>
+                                <Text style={styles.name} numberOfLines={1}>{item.patientName}</Text>
+                            </View>
+                            <View style={styles.metaItem}>
+                                <View style={styles.detailsRow}>
+                                    <Text style={styles.uhid}>UHID: {item.uhidNo}</Text>
+                                    <Text style={styles.dot}>•</Text>
+                                    <Text style={styles.regTime}>{item.regDate} {item.regTime}</Text>
+                                </View>
+                                <View style={styles.detailsRow}>
+                                    <Text style={styles.gender}>{item.gender}</Text>
+                                    <Text style={styles.age}>{item.age}</Text>
+                                </View>
+                            </View>
+                        </View>
                     </View>
-                    <TouchableOpacity onPress={() => toggleExpand(item.regId)}>
+                    <TouchableOpacity
+                        style={styles.expandButton}
+                        onPress={() => toggleExpand(item.regId)}
+                    >
                         <Icon
-                            name="chevron-forward-circle-outline"
-                            size={24}
-                            color="#333"
-                            style={{ transform: [{ rotate: expandedId === item.regId ? '90deg' : '0deg' }] }}
+                            name={expandedId === item.regId ? "chevron-up-circle" : "chevron-down-circle"}
+                            size={20}
+                            color="#4F46E5"
                         />
                     </TouchableOpacity>
                 </View>
@@ -170,8 +169,10 @@ export default function PatientList() {
                                 style={styles.tabButton}
                                 onPress={() => handleNavigate(item.regId, i)}
                             >
-                                <Icon name={iconMap[label]} size={20} color="#333" />
-                                <Text style={styles.tabText}>{label}</Text>
+                                <Icon name={iconMap[label].icon} size={18} color={iconMap[label].color} />
+                                <Text style={[styles.tabText, { color: iconMap[label].color }]}>
+                                    {iconMap[label].name}
+                                </Text>
                             </TouchableOpacity>
                         ))}
                     </View>
@@ -181,90 +182,53 @@ export default function PatientList() {
     );
 
     return (
-        <View style={styles.container}>
-            <TouchableOpacity onPress={() => setModalVisible(true)}>
-                <Text style={styles.doctorName}>
-                    {selectedDoctor ? `${selectedDoctor.consultantName}` : 'Loading...'}
-                </Text>
-            </TouchableOpacity>
+        <SafeAreaView style={styles.container}>
+            <StatusBar backgroundColor="#F9FAFB" barStyle="dark-content" />
 
-            {/* Search and Date Picker */}
             <View style={styles.searchRow}>
-                <TextInput
-                    mode="outlined"
-                    placeholder="Search Patients"
-                    value={searchText}
-                    onChangeText={setSearchText}
-                    style={styles.searchInput}
-                />
-                <TouchableOpacity
-                    onPress={() => setShowDatePicker(true)}
-                    style={styles.dateButton}
-                >
-                    <Text>{selectedDate}</Text>
-                </TouchableOpacity>
+                <View style={styles.searchInputContainer}>
+                    <Icon name="search" size={20} color="#6B7280" />
+                    <TextInput
+                        mode="flat"
+                        placeholder="Search patients..."
+                        value={searchText}
+                        onChangeText={setSearchText}
+                        style={styles.searchInput}
+                        theme={{ colors: { primary: '#4F46E5' } }}
+                    />
+                </View>
+
                 <TouchableOpacity
                     onPress={() => navigation.navigate('Patient Registration')}
                     style={styles.addButton}
                 >
-                    <Icon name="add" size={22} color="#fff" />
+                    <Icon name="person-add" size={20} color="#fff" />
+                    <Text style={styles.addButtonText}>Add</Text>
                 </TouchableOpacity>
             </View>
-            z
-            <DateTimePicker
-                modal
-                open={showDatePicker}
-                date={new Date(selectedDate)}
-                mode="date"
-                onConfirm={(date) => {
-                    setSelectedDate(date.toISOString().split('T')[0]);
-                    setShowDatePicker(false);
-                }}
-                onCancel={() => setShowDatePicker(false)}
-            />
 
-            {/* Doctor Selection Modal */}
-            <Modal visible={modalVisible} transparent animationType="slide">
-                <View style={styles.modalOverlay}>
-                    <View style={styles.modalContent}>
-                        {doctors.map(doc => (
-                            <Pressable
-                                key={doc.consultantCode}
-                                style={styles.modalItem}
-                                onPress={() => {
-                                    setSelectedDoctor(doc);
-                                    setModalVisible(false);
-                                    setExpandedId(null);
-                                }}
-                            >
-                                <Text style={styles.modalText}>
-                                    {`${doc.consultantInitial} ${doc.consultantName}`}
-                                </Text>
-                            </Pressable>
-                        ))}
-                    </View>
-                </View>
-            </Modal>
-
-            {/* Patient List */}
             <FlatList
-                data={patients}
-                keyExtractor={(item) => item.regId.toString()}
+                data={sortedPatients}
+                keyExtractor={(item) => item?.regId?.toString() || Math.random().toString()}
                 renderItem={renderPatientItem}
                 onEndReached={handleLoadMore}
                 onEndReachedThreshold={0.5}
+                contentContainerStyle={styles.listContainer}
                 ListEmptyComponent={
-                    <Text style={styles.emptyText}>No patients found.</Text>
+                    <View style={styles.emptyContainer}>
+                        <Icon name="people-outline" size={48} color="#9CA3AF" />
+                        <Text style={styles.emptyText}>No patients found</Text>
+                    </View>
                 }
                 ListFooterComponent={
                     loading ? (
-                        <ActivityIndicator style={{ marginVertical: 16 }} />
+                        <ActivityIndicator color="#4F46E5" style={{ marginVertical: 16 }} />
                     ) : !hasMoreData && patients.length > 0 ? (
-                        <Text style={styles.footerText}>No more records.</Text>
+                        <Text style={styles.footerText}>No more records</Text>
                     ) : null
                 }
             />
-        </View>
+        </SafeAreaView>
     );
 }
 
@@ -273,109 +237,171 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: '#F9FAFB',
     },
-    doctorName: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        paddingHorizontal: 16,
-        color: '#2563EB',
-        backgroundColor: '#F3F4F9',
-        paddingVertical: 10,
-    },
     searchRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 16,
-        marginBottom: 10,
-        justifyContent: 'space-between',
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+    },
+    searchInputContainer: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFFFFF',
+        borderRadius: 8,
+        paddingHorizontal: 8,
+        marginRight: 8,
+        borderWidth: 1,
+        borderColor: '#E5E7EB',
+        height: 36,
     },
     searchInput: {
-        flex: 1.2,
-        marginRight: 8,
-        backgroundColor: '#fff',
-        height: 40,
-    },
-    dateButton: {
-        padding: 10,
-        backgroundColor: '#FFF',
-        borderRadius: 8,
-        marginRight: 8,
+        flex: 1,
+        backgroundColor: 'transparent',
+        height: 36,
+        marginLeft: 4,
     },
     addButton: {
-        padding: 10,
-        backgroundColor: '#2563EB',
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#4F46E5',
+        paddingHorizontal: 12,
+        paddingVertical: 8,
         borderRadius: 8,
     },
+    addButtonText: {
+        color: '#FFFFFF',
+        fontWeight: '600',
+        marginLeft: 4,
+        fontSize: 13,
+    },
+    listContainer: {
+        padding: 8,
+    },
+    cardContainer: {
+        marginBottom: 6,
+        borderRadius: 8,
+        backgroundColor: '#FFFFFF',
+        elevation: 2,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+    },
     card: {
-        marginHorizontal: 16,
-        padding: 12,
-        backgroundColor: '#E0E7FF',
-        marginBottom: 14,
-        borderRadius: 16,
+        borderRadius: 8,
+        overflow: 'hidden',
     },
     cardHeader: {
         flexDirection: 'row',
+        padding: 8,
+        alignItems: 'center',
         justifyContent: 'space-between',
+    },
+    leftSection: {
+        flex: 1,
+        flexDirection: 'row',
         alignItems: 'center',
     },
-    name: {
-        fontSize: 15,
-        fontWeight: '600',
-        color: '#1F2937',
+    tokenContainer: {
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        backgroundColor: '#EEF2FF',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 8,
     },
-    metaText: {
+    tokenText: {
         fontSize: 12,
-        color: '#555',
+        fontWeight: '600',
+        color: '#4F46E5',
+    },
+    mainInfo: {
+        flex: 1,
+    },
+    nameRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 2,
+    },
+    name: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: '#111827',
+        flex: 1,
+    },
+    gender: {
+        fontSize: 11,
+        color: '#6B7280',
+        marginHorizontal: 4,
+    },
+    age: {
+        fontSize: 11,
+        color: '#6B7280',
+    },
+    detailsRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    uhid: {
+        fontSize: 11,
+        color: '#6B7280',
+    },
+    dot: {
+        fontSize: 11,
+        color: '#6B7280',
+        marginHorizontal: 4,
+    },
+    regTime: {
+        fontSize: 11,
+        color: '#6B7280',
+    },
+    expandButton: {
+        width: 28,
+        height: 28,
+        borderRadius: 14,
+        borderWidth: 1,
+        borderColor: '#4F46E5',
+        backgroundColor: '#EEF2FF',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginLeft: 8,
     },
     bottomTabs: {
         flexDirection: 'row',
-        flexWrap: 'wrap',
-        justifyContent: 'space-around',
-        paddingVertical: 14,
-        backgroundColor: '#F3F4F6',
-        borderRadius: 12,
-        marginTop: 12,
+        padding: 6,
+        backgroundColor: '#F8FAFC',
+        borderTopWidth: 1,
+        borderTopColor: '#E5E7EB',
     },
     tabButton: {
+        flex: 1,
         alignItems: 'center',
-        marginVertical: 8,
+        padding: 4,
+        margin: 2,
+        borderRadius: 6,
+        backgroundColor: '#FFFFFF',
     },
     tabText: {
-        fontSize: 13,
-        color: '#374151',
-        marginTop: 4,
-    },
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.4)',
-        justifyContent: 'center',
-        paddingHorizontal: 30,
-    },
-    modalContent: {
-        backgroundColor: '#FFFFFF',
-        borderRadius: 16,
-        paddingVertical: 20,
-        paddingHorizontal: 20,
-        elevation: 8,
-    },
-    modalItem: {
-        paddingVertical: 14,
-        paddingHorizontal: 10,
-        borderBottomColor: '#E5E7EB',
-        borderBottomWidth: 1,
-    },
-    modalText: {
-        fontSize: 17,
+        fontSize: 10,
         fontWeight: '500',
-        color: '#111827',
+        marginTop: 2,
+    },
+    emptyContainer: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 24,
     },
     emptyText: {
-        textAlign: 'center',
-        marginTop: 20,
-        color: '#888',
+        fontSize: 14,
+        color: '#9CA3AF',
+        marginTop: 8,
     },
     footerText: {
         textAlign: 'center',
-        marginVertical: 16,
-        color: '#888',
+        color: '#6B7280',
+        paddingVertical: 12,
+        fontSize: 13,
     },
 });

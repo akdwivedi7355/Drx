@@ -4,14 +4,7 @@
 import axios from 'axios';
 import CryptoJS from 'crypto-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
-const BaseURL = 'http://192.168.7.79:8008/aarogyaRx_v5/aarogyaRx/apis/v1/';
-const BaseURLLive = 'https://uataarogyarx.dmaarogya.com/aarogyarx/aarogyaRx/apis/v1/';
-
-
-const AES_KEY = '1c012b9c8aa74363aa541b8080e886e0';
-const AES_IV = '080aae32c79b49bf';
-
+import { BASE_URL, BASE_URL_LIVE, AES_KEY, AES_IV } from '../config';
 
 const encrypt = (plainText) => {
   var key = CryptoJS.enc.Utf8.parse(AES_KEY);
@@ -42,7 +35,7 @@ const decrypt = (cipherText) => {
 
 const post = async (url, data, headers = {}) => {
   try {
-    const response = await axios.post(`${BaseURLLive}${url}`, data, { headers });
+    const response = await axios.post(`${BASE_URL_LIVE}${url}`, data, { headers });
     if (response.data.respCode === 'ERR0001') {
       console.warn('Session invalid. Attempting automatic re-authentication...');
       const autoLoginRes = await userAuthenticationAuto();
@@ -260,7 +253,7 @@ export const verifyAbdmStatus = async (type, value) => {
   };
 
   const headers = { u: creds.u };
-  return await post('AbhaVerifyStatus', payload, headers);
+  return await post('/AbhaVerifyStatus', payload, headers);
 };
 
 export const forgetPassword = async (otp, authType, loginId, newPassword) => {
@@ -433,7 +426,7 @@ export const SaveDiagnosticReport = async (patientData) => {
     rawData: patientData.rawData,
   };
   const headers = { u: creds.u };
-  return await post('/SavePrescription', payload, headers);
+  return await post('/SaveDiagnostic', payload, headers);
 }
 
 export const saveMedicalBillReort = async (patientData) => {
@@ -468,3 +461,85 @@ export const PatientHistoryData = async (patientData) => {
   const headers = { u: creds.u };
   return await post('/PatientHistory', payload, headers);
 }
+
+
+
+export const GetPrescription = async (patientData) => {
+  const creds = await getFromAsyncStorage('auth_credentials');
+  if (!creds) {
+    return { status: false, errorMessage: 'No stored credentials' };
+  }
+  const payload = {
+    docid: patientData.docid,
+  };
+  const headers = { u: creds.u };
+  return await post('/GetPrescription', payload, headers);
+}
+
+export const GetDiagnosticReport = async (patientData) => {
+  const creds = await getFromAsyncStorage('auth_credentials');
+  if (!creds) {
+    return { status: false, errorMessage: 'No stored credentials' };
+  }
+  const payload = {
+    docid: patientData.docid,
+  };
+  const headers = { u: creds.u };
+  return await post('/GetDiagnostic', payload, headers);
+}
+
+
+export const GetSaleBill = async (patientData) => {
+  const creds = await getFromAsyncStorage('auth_credentials');
+  if (!creds) {
+    return { status: false, errorMessage: 'No stored credentials' };
+  }
+  const payload = {
+    docid: patientData.docid,
+  };
+  const headers = { u: creds.u };
+  return await post('/GetSaleBill', payload, headers);
+}
+
+
+export const DiscardUHID = async (uhid) => {
+  const creds = await getFromAsyncStorage('auth_credentials');
+  if (!creds) {
+    return { status: false, errorMessage: 'No stored credentials' };
+  }
+  const payload = {
+    uhid: uhid,
+  };
+  const headers = { u: creds.u };
+  return await post('/DiscardUHID', payload, headers);
+}
+
+
+export const DiscardRegistration = async (regDocid) => {
+  const creds = await getFromAsyncStorage('auth_credentials');
+  if (!creds) {
+    return { status: false, errorMessage: 'No stored credentials' };
+  }
+  const payload = {
+    regDocid: regDocid, 
+  };
+  const headers = { u: creds.u };
+  return await post('/DiscardRegistration', payload, headers);
+}
+
+export const DiscardRecord = async (uhid, regDocid, docid, hiType) => {
+  const creds = await getFromAsyncStorage('auth_credentials');
+  if (!creds) {
+    return { status: false, errorMessage: 'No stored credentials' };
+  }
+  console.log('DiscardRecord', uhid, regDocid, docid, hiType);
+  const payload = {
+    uhid: uhid,
+    regDocid: regDocid,
+    docid: docid,
+    hiType: hiType,
+  };
+  const headers = { u: creds.u };
+  return await post('/DiscardRecord', payload, headers);
+}
+
